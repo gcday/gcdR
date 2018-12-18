@@ -9,7 +9,7 @@ seuratCCAWrapper(all.treatments, condition.1, condition.2)
 \arguments{
 \item{all.treatments}{Seurat object containing cells in both conditions}
 
-\item{condition.1}{first condition of}
+\item{condition.1}{first condition of interest}
 
 \item{condition.2}{second condition of interest}
 }

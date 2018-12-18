@@ -293,7 +293,7 @@ renameSeuratIdents <- function(srt.obj, new.idents) {
 #'
 #'
 #' @param all.treatments Seurat object containing cells in both conditions 
-#' @param condition.1 first condition of 
+#' @param condition.1 first condition of interest
 #' @param condition.2 second condition of interest
 #' @return list containing Seurat objects and plots
 #'
@@ -304,11 +304,15 @@ renameSeuratIdents <- function(srt.obj, new.idents) {
 seuratCCAWrapper <- function(all.treatments, condition.1, condition.2) {
   require("Seurat")
   c1.counts <- SubsetData(all.treatments, ident.use = c(condition.1), do.clean=TRUE)@raw.data
-  COND1.RET <- seuratFilterWrapper(c1.counts, project.name = condition.1, mito.prefix = "^mt-")
+  COND1.RET <- seuratStartFromCounts(c1.counts, project.name = condition.1, mito.prefix = "^mt-")
+
+  # COND1.RET <- seuratFilterWrapper(c1.counts, project.name = condition.1, mito.prefix = "^mt-")
   COND1.RET$seurat@meta.data$treatment <- condition.1
   
   c2.counts <- SubsetData(all.treatments, ident.use = c(condition.2), do.clean=TRUE)@raw.data
-  COND2.RET <- seuratFilterWrapper(c2.counts, project.name = condition.2, mito.prefix = "^mt-")
+  # COND2.RET <- seuratFilterWrapper(c2.counts, project.name = condition.2, mito.prefix = "^mt-")
+  COND2.RET <- seuratStartFromCounts(c2.counts, project.name = condition.2, mito.prefix = "^mt-")
+
   COND2.RET$seurat@meta.data$treatment <- condition.2
   
   COND1.genes <- head(rownames(COND1.RET$seurat@hvg.info), 2000)

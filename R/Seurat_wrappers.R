@@ -484,15 +484,13 @@ seuratTSNEPlotCCA <- function(RET) {
 #' @export
 makeMarkerHeatmaps <- function(RET, marker.lists) {
   require("Seurat")
+  require("ggplot2")
   RET$plots$markers <- list()
   for (marked.group in names(marker.lists)) {
     RET$plots$markers[[marked.group]] <- list()
     RET$plots$markers[[marked.group]]$heatmap <- DoHeatmap(SubsetData(RET$seurat, max.cells.per.ident = 500), 
-                                              genes.use = marker.lists[[marked.group]], 
-                                              slim.col.label = TRUE, group.label.rot = TRUE, 
-                                              do.plot=FALSE) + ggtitle(marked.group)
-    RET$plots$markers[[marked.group]]$dotplot <- DotPlot(RET$seurat, genes.plot = marker.lists[[marked.group]],
-                                                    do.return=TRUE) + ggtitle(marked.group)
+                                              features = marker.lists[[marked.group]]) + ggtitle(marked.group)
+    RET$plots$markers[[marked.group]]$dotplot <- DotPlot(RET$seurat, features = marker.lists[[marked.group]],) + ggtitle(marked.group)
   }
   return(RET)
 }

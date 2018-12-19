@@ -172,15 +172,20 @@ seuratVariableWrapper <- function(RET) {
 #'
 #'
 #' @param RET list containing Seurat object and plots
+#' @param do.jackstraw whether JackStraw analysis is performed
+#'
 #' @return list containing post-PCA Seurat object and PCA plots
 #'
 #' @examples
 #' seuratPCAWrapper(RET)
 #'
 #' @export
-seuratPCAWrapper <- function(RET) {
+seuratPCAWrapper <- function(RET, do.jackstraw) {
   RET[["seurat"]] <- RunPCA(object =  RET[["seurat"]], pc.genes =  RET[["seurat"]]@var.genes, do.print = FALSE,
                   pcs.compute = 50)
+  if (do.jackstraw) {
+  	RET[["seurat"]] <- JackStraw(RET[["seurat"]], num.pc = 50, do.par = TRUE)
+  }
   RET[["plots"]][["pc.elbow"]] <- PCElbowPlot(RET[["seurat"]], num.pc = 50)
   RET[["plots"]][["pca"]] <- PCAPlot(RET[["seurat"]], dim.1 = 1, dim.2 = 2, do.return = TRUE)
   return(RET)
@@ -393,7 +398,7 @@ seuratConservedMarkerWrapper <- function(RET) {
   return(RET)
 }
 
-#' Finds conserved markers for all clusters
+#' Finds DE genes in each cluster between conditions 
 #'
 #'
 #' @param RET list containing aligned Seurat object

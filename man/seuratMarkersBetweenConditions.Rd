@@ -2,7 +2,7 @@
 % Please edit documentation in R/Seurat_wrappers.R
 \name{seuratMarkersBetweenConditions}
 \alias{seuratMarkersBetweenConditions}
-\title{Finds conserved markers for all clusters}
+\title{Finds DE genes in each cluster between conditions}
 \usage{
 seuratMarkersBetweenConditions(RET)
 }
@@ -13,7 +13,7 @@ seuratMarkersBetweenConditions(RET)
 list containing aligned Seurat object and TSNE plot of the CCA
 }
 \description{
-Finds conserved markers for all clusters
+Finds DE genes in each cluster between conditions
 }
 \examples{
 seuratAlignClusterWrapper(RET)

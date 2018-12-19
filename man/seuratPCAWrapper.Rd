@@ -4,10 +4,12 @@
 \alias{seuratPCAWrapper}
 \title{Wrapper function to perform PCA and generate PCA plots for a Seurat object}
 \usage{
-seuratPCAWrapper(RET)
+seuratPCAWrapper(RET, do.jackstraw)
 }
 \arguments{
 \item{RET}{list containing Seurat object and plots}
+
+\item{do.jackstraw}{whether JackStraw analysis is performed}
 }
 \value{
 list containing post-PCA Seurat object and PCA plots

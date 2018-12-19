@@ -59,7 +59,7 @@ convertHumanGeneList <- function(genes){
 #'
 #'
 #' @param read.counts sparse matrix of read counts (returned by \code{\link[Seurat]{Read10X}})
-#' @param project.name name for Seurat object (required)
+#' @param project name for Seurat object (required)
 #' @param min.genes param for filtering
 #' @param max.genes param for filtering
 #' @param max.UMI param for filtering
@@ -71,14 +71,14 @@ convertHumanGeneList <- function(genes){
 #' prettyPrintMarkers()
 #'
 #' @export
-seuratStartFromCounts <- function(read.counts, project.name, min.genes = 200, 
+seuratStartFromCounts <- function(read.counts, project, min.genes = 200, 
                                   max.genes = 5000, max.UMI = 30000, 
                                   max.mito = 0.25, mito.prefix = "^MT-") {
   require("Seurat")
   # removes prefixes added when using mixed references (if present)
   row.names(read.counts) <- gsub("hg19_","",row.names(read.counts))
-  row.names(read.counts) <- gsub("mm10_","",row.names(read.counts))
-  SRT <- CreateSeuratObject(counts = read.counts, project = project.name)
+  # row.names(read.counts) <- gsub("mm10_","",row.names(read.counts))
+  SRT <- CreateSeuratObject(counts = read.counts, project = project)
   return(seuratFilterWrapper(SRT, min.genes = min.genes, max.genes = max.genes, max.UMI = max.UMI,
                              max.mito = max.mito, mito.prefix = mito.prefix))
 }

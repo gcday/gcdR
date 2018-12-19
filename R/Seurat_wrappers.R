@@ -74,7 +74,6 @@ convertHumanGeneList <- function(genes){
 seuratStartFromCounts <- function(read.counts, project, min.genes = 200, 
                                   max.genes = 5000, max.UMI = 30000, 
                                   max.mito = 0.25, mito.prefix = "^MT-") {
-  require("Seurat")
   # removes prefixes added when using mixed references (if present)
   row.names(read.counts) <- gsub("hg19_","",row.names(read.counts))
   # row.names(read.counts) <- gsub("mm10_","",row.names(read.counts))
@@ -104,18 +103,19 @@ seuratFilterWrapper <- function(SRT, min.genes = 200, max.genes = 5000, max.UMI 
   require("Seurat")
   RET <- list()
   PLOTS <- list()
-  RET[["raw.cell.count"]] <- ncol(SRT@data)
+  RET[["raw.cell.count"]] <- ncol(SRT@assays[[SRT@active.assay]]@data)
   RET[["min.genes"]] <- min.genes
   RET[["max.genes"]] <- max.genes
   RET[["max.UMI"]] <- max.UMI
-  oldCellCount <- ncol(SRT@data)
+
+  oldCellCount <- ncol(SRT@assays[[SRT@active.assay]]@data )
   SRT <- FilterCells(SRT, subset.names = c("nGene"), low.thresholds = c(min.genes))
-  RET[["under.min.genes"]] <-  oldCellCount - ncol(SRT@data)
-  oldCellCount <- ncol(SRT@data)
+  RET[["under.min.genes"]] <-  oldCellCount - ncol(SRT@assays[[SRT@active.assay]]@data )
+  oldCellCount <- ncol(SRT@assays[[SRT@active.assay]]@data )
   SRT <- FilterCells(SRT, subset.names = c("nGene"), high.thresholds = c(max.genes))
-  RET[["over.max.genes"]] <-  oldCellCount - ncol(SRT@data)
+  RET[["over.max.genes"]] <-  oldCellCount - ncol(SRT@assays[[SRT@active.assay]]@data )
   
-  mito.genes <- grep(pattern = mito.prefix, x = rownames(x = SRT@data), value = TRUE)
+  mito.genes <- grep(pattern = mito.prefix, x = rownames(x = SRT@assays[[SRT@active.assay]]@data), value = TRUE)
   percent.mito <- Matrix::colSums(SRT@raw.data[mito.genes, ]) / Matrix::colSums(SRT@raw.data)
   SRT <- AddMetaData(object = SRT, metadata = percent.mito, col.name = "percent.mito")
   
@@ -124,13 +124,13 @@ seuratFilterWrapper <- function(SRT, min.genes = 200, max.genes = 5000, max.UMI 
                                            nCol = 3,
                                            do.return=TRUE) + ggtitle("Before mito/UMI filtering")
   
-  oldCellCount <- ncol(SRT@data)
+  oldCellCount <- ncol(SRT@assays[[SRT@active.assay]]@data )
   SRT <- FilterCells(object = SRT, subset.names = c("nUMI"), high.thresholds = c(max.UMI))
-  RET[["over.max.UMI"]] <- oldCellCount - ncol(SRT@data)
+  RET[["over.max.UMI"]] <- oldCellCount - ncol(SRT@assays[[SRT@active.assay]]@data )
   
-  oldCellCount <- ncol(SRT@data)
+  oldCellCount <- ncol(SRT@assays[[SRT@active.assay]]@data )
   SRT <- FilterCells(object = SRT, subset.names = c("percent.mito"), high.thresholds = c(max.mito))
-  RET[["over.max.mito"]] <- oldCellCount - ncol(SRT@data)
+  RET[["over.max.mito"]] <- oldCellCount - ncol(SRT@assays[[SRT@active.assay]]@data )
   PLOTS$post.mito.UMI.filtering <-  VlnPlot(object = SRT,
                                            features.plot = c("nGene", "nUMI", "percent.mito"),
                                            nCol = 3,

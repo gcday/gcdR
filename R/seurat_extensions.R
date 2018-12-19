@@ -16,7 +16,7 @@ scoreModules <- function(RET, modules) {
     RET$modules <- list()
   }
   i <- 1
-  assay.data <- GetAssayData(RET$seurat, slot = "scale.data")
+  assay.data <- GetAssayData(RET$seurat)
   data.avg <- Matrix::rowMeans(x = assay.data[rownames(RET$seurat), ])
   control.pool <- names(data.avg[data.avg != 0])
 

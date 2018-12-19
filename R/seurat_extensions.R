@@ -16,11 +16,15 @@ scoreModules <- function(RET, modules) {
     RET$modules <- list()
   }
   i <- 1
+  assay.data <- GetAssayData(RET$seurat, slot = "scale.data")
+  data.avg <- Matrix::rowMeans(x = assay.data[rownames(RET$seurat), ])
+  control.pool <- names(data.avg[data.avg != 0])
+
   for (module.name in names(modules)) {
     RET$modules[[module.name]] <- modules[[module.name]]
     print(paste("Scoring ", module.name))
     RET$seurat <- AddModuleScore(RET$seurat, features = modules[[module.name]],
-                                 ctrl = 100, name = module.name)
+                                 ctrl = 100, name = module.name, pool = control.pool)
     RET$seurat@meta.data[[module.name]] <- RET$seurat@meta.data[[paste0(module.name, "1")]]
     print(paste("Completed", i, "of", length(modules)))
     i <- i + 1

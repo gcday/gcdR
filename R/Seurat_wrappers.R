@@ -107,8 +107,8 @@ seuratFilterWrapper <- function(SRT, min.genes = 200, max.genes = 5000, max.UMI 
   RET[["min.genes"]] <- min.genes
   RET[["max.genes"]] <- max.genes
   RET[["max.UMI"]] <- max.UMI
-  SRT <- AddMetaData(SRT, SRT@meta.data$nCount_RNA, col.name = "nGene")
-  SRT <- AddMetaData(SRT, SRT@meta.data$nFeature_RNA, col.name = "nUMI")
+  SRT <- AddMetaData(SRT, SRT@meta.data$nCount_RNA, col.name = "nUMI")
+  SRT <- AddMetaData(SRT, SRT@meta.data$nFeature_RNA, col.name = "nGene")
 
   # SRT@meta.data$nUMI <- SRT@meta.data$nCount_RNA
   # SRT@meta.data$nGene <- SRT@meta.data$nFeature_RNA
@@ -127,7 +127,9 @@ seuratFilterWrapper <- function(SRT, min.genes = 200, max.genes = 5000, max.UMI 
   PLOTS$pre.mito.UMI.filtering <-  VlnPlot(object = SRT,
                                            features = c("nGene", "nUMI", "percent.mito"),
                                            ncol = 3) + ggtitle("Before mito/UMI filtering")
-  
+  PLOTS$pre.filter.UMI.mito <- FeatureScatter(object = SRT, feature1 = "nUMI", feature2 = "percent.mito") + ggtitle("Before mito/UMI filtering")
+  PLOTS$pre.filter.UMI.nGene <- FeatureScatter(object = SRT, feature1 = "nUMI", feature2 = "nGene") + ggtitle("Before mito/UMI filtering")
+
   oldCellCount <- ncol(SRT@assays[[SRT@active.assay]]@data )
   SRT <- SubsetData(SRT, subset.name = "nUMI", high.threshold = max.UMI)
   RET[["over.max.UMI"]] <- oldCellCount - ncol(SRT@assays[[SRT@active.assay]]@data )
@@ -139,6 +141,10 @@ seuratFilterWrapper <- function(SRT, min.genes = 200, max.genes = 5000, max.UMI 
   PLOTS$post.mito.UMI.filtering <-  VlnPlot(object = SRT,
                                            features = c("nGene", "nUMI", "percent.mito"),
                                            ncol = 3) + ggtitle("After mito/UMI filtering")
+  PLOTS$post.filter.UMI.mito <- FeatureScatter(object = SRT, feature1 = "nUMI", feature2 = "percent.mito") + ggtitle("After mito/UMI filtering")
+  PLOTS$post.filter.UMI.nGene <- FeatureScatter(object = SRT, feature1 = "nUMI", feature2 = "nGene") + ggtitle("After mito/UMI filtering")
+
+
   SRT <- NormalizeData(object = SRT, normalization.method = "LogNormalize", scale.factor = 10000)
   RET[["seurat"]] <- SRT
   RET[["plots"]] <- PLOTS

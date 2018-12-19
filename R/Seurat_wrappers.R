@@ -266,7 +266,7 @@ seuratAllMarkers <- function(RET, do.fast = TRUE, do.full = FALSE) {
 #'
 #' @export
 printSeuratMarkers <- function(RET) {
-  for (ident in levels(RET$seurat@ident)) {
+  for (ident in levels(Idents(RET$seurat))) {
     print(ident)
     print(kable(prettyPrintMarkers(RET$all.markers.quick, ident)))
   }

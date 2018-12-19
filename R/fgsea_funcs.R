@@ -313,8 +313,8 @@ correlateFgseaLeadingEdges <- function(RET, pval.thresh = 0.01, path.dbs.to.chec
 findLikelyLightChainIdent <- function(RET) {
   require("dplyr")
   require("tibble")
-  avg.exprs <- as.data.frame(rowMeans(RET$seurat@data))
-  colnames(avg.exprs) <-c("avg_expr")
+  avg.exprs <- as.data.frame(rowMeans(GetAssayData(RET$seurat)))
+  colnames(avg.exprs) <-c ("avg_expr")
   avg.exprs <- rownames_to_column(avg.exprs, var = "gene")
   IG.C.genes <- grep(pattern = "^IG[LK]C", x = avg.exprs$gene, value = TRUE)
   IG.V.genes <- grep(pattern = "^IG[LK]V", x = avg.exprs$gene, value = TRUE)

@@ -221,7 +221,7 @@ seuratClusterWrapper <- function(RET, dims = 1:10, resolution = 0.50) {
 
   RET$seurat <- FindClusters(RET$seurat, resolution = resolution)
   RET$seurat <- RunTSNE(RET$seurat, dims = dims)
-  RET$plots[["TSNE"]] <- TSNEPlot(RET$seurat, do.return = TRUE)
+  RET$plots[["TSNE"]] <- DimPlot(RET$seurat, label = T, reduction = "tsne")
   return(RET)
 }
 

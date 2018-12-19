@@ -159,15 +159,21 @@ seuratFilterWrapper <- function(SRT, min.genes = 200, max.genes = 5000, max.UMI 
 #'
 #' @export
 seuratVariableWrapper <- function(RET) {
-  RET[["seurat"]] <- FindVariableGenes(object = RET[["seurat"]], 
-                                       do.plot = FALSE,
-                                       mean.function = ExpMean,
-                                       dispersion.function = LogVMR,
-                                       x.low.cutoff = 0.1, x.high.cutoff = 5,
-                                       y.cutoff = 0.5)
-  RET[["plots"]][["variable.genes"]] <- VariableGenePlot(object = RET[["seurat"]],
-                                       x.low.cutoff = 0.1, x.high.cutoff = 5,
-                                       y.cutoff = 0.5)
+  # RET[["seurat"]] <- FindVariableGenes(object = RET[["seurat"]], 
+  #                                      do.plot = FALSE,
+  #                                      mean.function = ExpMean,
+  #                                      dispersion.function = LogVMR,
+  #                                      x.low.cutoff = 0.1, x.high.cutoff = 5,
+  #                                      y.cutoff = 0.5)
+  RET[["seurat"]] <- FindVariableFeatures(object = RET[["seurat"]], 
+                                       mean.function = FastExpMean,
+                                       dispersion.function = FastLogVMR,
+                                       dispersion.cutoff = c(0.5, Inf),
+                                       mean.cutoff = c(0.1, 8))
+  RET[["plots"]][["variable.genes"]] <- VariableFeaturePlot(object = RET[["seurat"]])
+  # RET[["plots"]][["variable.genes"]] <- VariableGenePlot(object = RET[["seurat"]],
+  #                                      x.low.cutoff = 0.1, x.high.cutoff = 5,
+  #                                      y.cutoff = 0.5)
   RET[["seurat"]] <- ScaleData(RET[["seurat"]])
   return(RET)
 }

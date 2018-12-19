@@ -165,11 +165,12 @@ seuratVariableWrapper <- function(RET) {
   #                                      dispersion.function = LogVMR,
   #                                      x.low.cutoff = 0.1, x.high.cutoff = 5,
   #                                      y.cutoff = 0.5)
-  RET[["seurat"]] <- FindVariableFeatures(object = RET[["seurat"]], 
-                                       mean.function = FastExpMean,
-                                       dispersion.function = FastLogVMR,
+  RET[["seurat"]] <- FindVariableFeatures(object = RET[["seurat"]],
                                        dispersion.cutoff = c(0.5, Inf),
                                        mean.cutoff = c(0.1, 8))
+  #  
+                                       # mean.function = FastExpMean,
+                                       # dispersion.function = FastLogVMR,
   RET[["plots"]][["variable.genes"]] <- VariableFeaturePlot(object = RET[["seurat"]])
   # RET[["plots"]][["variable.genes"]] <- VariableGenePlot(object = RET[["seurat"]],
   #                                      x.low.cutoff = 0.1, x.high.cutoff = 5,

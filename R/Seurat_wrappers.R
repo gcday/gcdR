@@ -121,7 +121,7 @@ seuratFilterWrapper <- function(SRT, min.genes = 200, max.genes = 5000, max.UMI 
   RET[["over.max.genes"]] <-  oldCellCount - ncol(SRT@assays[[SRT@active.assay]]@data )
   
   mito.genes <- grep(pattern = mito.prefix, x = rownames(x = SRT@assays[[SRT@active.assay]]@data), value = TRUE)
-  percent.mito <- Matrix::colSums(SRT$assays$RNA@counts[mito.genes, ]) / Matrix::colSums(SRT$assays$RNA@counts)
+  percent.mito <- Matrix::colSums(SRT$assays@RNA@counts[mito.genes, ]) / Matrix::colSums(SRT@assays$RNA@counts)
   SRT <- AddMetaData(object = SRT, metadata = percent.mito, col.name = "percent.mito")
   
   PLOTS$pre.mito.UMI.filtering <-  VlnPlot(object = SRT,

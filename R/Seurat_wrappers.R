@@ -126,8 +126,7 @@ seuratFilterWrapper <- function(SRT, min.genes = 200, max.genes = 5000, max.UMI 
   
   PLOTS$pre.mito.UMI.filtering <-  VlnPlot(object = SRT,
                                            features = c("nGene", "nUMI", "percent.mito"),
-                                           ncol = 3,
-                                           do.return=TRUE) + ggtitle("Before mito/UMI filtering")
+                                           ncol = 3) + ggtitle("Before mito/UMI filtering")
   
   oldCellCount <- ncol(SRT@assays[[SRT@active.assay]]@data )
   SRT <- SubsetData(SRT, subset.name = "nUMI", high.threshold = max.UMI)
@@ -139,8 +138,7 @@ seuratFilterWrapper <- function(SRT, min.genes = 200, max.genes = 5000, max.UMI 
   RET[["over.max.mito"]] <- oldCellCount - ncol(SRT@assays[[SRT@active.assay]]@data )
   PLOTS$post.mito.UMI.filtering <-  VlnPlot(object = SRT,
                                            features = c("nGene", "nUMI", "percent.mito"),
-                                           ncol = 3,
-                                           do.return=TRUE) + ggtitle("After mito/UMI filtering")
+                                           ncol = 3) + ggtitle("After mito/UMI filtering")
   SRT <- NormalizeData(object = SRT, normalization.method = "LogNormalize", scale.factor = 10000)
   RET[["seurat"]] <- SRT
   RET[["plots"]] <- PLOTS

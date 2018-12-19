@@ -198,7 +198,7 @@ seuratPCAWrapper <- function(RET, do.jackstraw = TRUE) {
   	RET[["seurat"]] <- JackStraw(RET[["seurat"]], dims = 50)
   }
   RET[["plots"]][["pc.elbow"]] <- ElbowPlot(RET[["seurat"]], ndims = 50)
-  RET[["plots"]][["pca"]] <- DimPlot(RET[["seurat"]], dim.1 = 1, dim.2 = 2, reduction = "PCA") 
+  RET[["plots"]][["pca"]] <- DimPlot(RET[["seurat"]], dim.1 = 1, dim.2 = 2, reduction = "pca") 
   return(RET)
 }
 

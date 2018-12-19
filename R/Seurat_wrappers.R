@@ -488,8 +488,8 @@ makeMarkerHeatmaps <- function(RET, marker.lists) {
   RET$plots$markers <- list()
   for (marked.group in names(marker.lists)) {
     RET$plots$markers[[marked.group]] <- list()
-    RET$plots$markers[[marked.group]]$heatmap <- DoHeatmap(SubsetData(RET$seurat, max.cells.per.ident = 500), 
-                                              features = marker.lists[[marked.group]]) + ggtitle(marked.group)
+    # RET$plots$markers[[marked.group]]$heatmap <- DoHeatmap(SubsetData(RET$seurat, max.cells.per.ident = 500), 
+                                              # features = marker.lists[[marked.group]]) + ggtitle(marked.group)
     RET$plots$markers[[marked.group]]$dotplot <- DotPlot(RET$seurat, features = marker.lists[[marked.group]],) + ggtitle(marked.group)
   }
   return(RET)

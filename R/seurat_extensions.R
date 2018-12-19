@@ -88,7 +88,7 @@ correlationAcrossIdents <- function(RET, vars.to.corr, only.var = TRUE) {
     for (ident in names(idents.exprs)) {
       # print(paste("Ident:", ident))
       ident.expr <- idents.exprs[[ident]]
-      if (var.name %in% ident.expr) {
+      if (var.name %in% row.names(ident.expr)) {
       	ident.corrs <- apply(ident.expr, 1, function(x){cor(as.numeric(ident.expr[var.name,]), x)})
 	      var.ident.df <- data.frame(ident.corrs, row.names = names(ident.corrs))
 	      colnames(var.ident.df) <- c(ident)

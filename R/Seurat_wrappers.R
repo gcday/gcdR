@@ -195,7 +195,7 @@ seuratPCAWrapper <- function(RET, do.jackstraw = TRUE) {
   RET[["seurat"]] <- RunPCA(object =  RET[["seurat"]], pc.genes =  RET[["seurat"]]@var.genes, do.print = FALSE,
                   pcs.compute = 50)
   if (do.jackstraw) {
-  	RET[["seurat"]] <- JackStraw(RET[["seurat"]], num.pc = 50, do.par = TRUE)
+  	RET[["seurat"]] <- JackStraw(RET[["seurat"]], dims = 50)
   }
   RET[["plots"]][["pc.elbow"]] <- PCElbowPlot(RET[["seurat"]], num.pc = 50)
   RET[["plots"]][["pca"]] <- PCAPlot(RET[["seurat"]], dim.1 = 1, dim.2 = 2, do.return = TRUE)

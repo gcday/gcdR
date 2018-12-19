@@ -109,10 +109,10 @@ seuratFilterWrapper <- function(SRT, min.genes = 200, max.genes = 5000, max.UMI 
   RET[["max.UMI"]] <- max.UMI
 
   oldCellCount <- ncol(SRT@assays[[SRT@active.assay]]@data )
-  SRT <- FilterCells(SRT, subset.names = c("nGene"), low.thresholds = c(min.genes))
+  SRT <- SubsetData(SRT, subset.name = "nGene", low.threshold = min.genes)
   RET[["under.min.genes"]] <-  oldCellCount - ncol(SRT@assays[[SRT@active.assay]]@data )
-  oldCellCount <- ncol(SRT@assays[[SRT@active.assay]]@data )
-  SRT <- FilterCells(SRT, subset.names = c("nGene"), high.thresholds = c(max.genes))
+  oldCellCount <- ncol(SRT@assays[[SRT@active.assay]]@data)
+  SRT <- SubsetData(SRT, subset.name = "nGene", high.threshold = max.genes)
   RET[["over.max.genes"]] <-  oldCellCount - ncol(SRT@assays[[SRT@active.assay]]@data )
   
   mito.genes <- grep(pattern = mito.prefix, x = rownames(x = SRT@assays[[SRT@active.assay]]@data), value = TRUE)
@@ -125,11 +125,12 @@ seuratFilterWrapper <- function(SRT, min.genes = 200, max.genes = 5000, max.UMI 
                                            do.return=TRUE) + ggtitle("Before mito/UMI filtering")
   
   oldCellCount <- ncol(SRT@assays[[SRT@active.assay]]@data )
-  SRT <- FilterCells(object = SRT, subset.names = c("nUMI"), high.thresholds = c(max.UMI))
+  SRT <- SubsetData(SRT, subset.name = "nUMI", high.threshold = max.UMI)
   RET[["over.max.UMI"]] <- oldCellCount - ncol(SRT@assays[[SRT@active.assay]]@data )
   
   oldCellCount <- ncol(SRT@assays[[SRT@active.assay]]@data )
-  SRT <- FilterCells(object = SRT, subset.names = c("percent.mito"), high.thresholds = c(max.mito))
+  SRT <- SubsetData(SRT, subset.name = "percent.mito", high.threshold = max.mito)
+
   RET[["over.max.mito"]] <- oldCellCount - ncol(SRT@assays[[SRT@active.assay]]@data )
   PLOTS$post.mito.UMI.filtering <-  VlnPlot(object = SRT,
                                            features.plot = c("nGene", "nUMI", "percent.mito"),

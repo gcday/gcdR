@@ -78,7 +78,7 @@ seuratStartFromCounts <- function(read.counts, project.name, min.genes = 200,
   # removes prefixes added when using mixed references (if present)
   row.names(read.counts) <- gsub("hg19_","",row.names(read.counts))
   row.names(read.counts) <- gsub("mm10_","",row.names(read.counts))
-  SRT <- CreateSeuratObject(raw.data = read.counts, project.name = project.name)
+  SRT <- CreateSeuratObject(counts = read.counts, project = project.name)
   return(seuratFilterWrapper(SRT, min.genes = min.genes, max.genes = max.genes, max.UMI = max.UMI,
                              max.mito = max.mito, mito.prefix = mito.prefix))
 }

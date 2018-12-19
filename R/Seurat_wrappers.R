@@ -191,7 +191,7 @@ seuratVariableWrapper <- function(RET) {
 #' seuratPCAWrapper(RET)
 #'
 #' @export
-seuratPCAWrapper <- function(RET, do.jackstraw) {
+seuratPCAWrapper <- function(RET, do.jackstraw = TRUE) {
   RET[["seurat"]] <- RunPCA(object =  RET[["seurat"]], pc.genes =  RET[["seurat"]]@var.genes, do.print = FALSE,
                   pcs.compute = 50)
   if (do.jackstraw) {

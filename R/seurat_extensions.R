@@ -77,7 +77,6 @@ correlationAcrossIdents <- function(RET, vars.to.corr, only.var = TRUE) {
     RET$module.corrs <- list()
   }
   i <- 1
-  print(exp_matrix)
   for (var.name in vars.to.corr) {
   	print(paste0("Calculating correlations for ", var.name, " [", i, " of ", length(vars.to.corr), "]"))
     # print(exp_matrix[var.name,])

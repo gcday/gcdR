@@ -31,7 +31,7 @@ seuratDEresToGSEARanks <- function(de.table) {
   # de.markers[!(is.na(de.markers$p_val)) & de.markers$p_val == 0,]$p_val <- 
   # de.markers <- de.markers[!duplicated(de.markers$gene),]
   de.markers <- mutate(de.markers, rank_metric = -log10(p_val) * sign(avg_logFC))
-  # de.markers <- de.markers[!duplicated(de.markers$rank_metric),]
+  de.markers <- de.markers[!duplicated(de.markers$rank_metric),]
   ranks <- data.frame(de.markers$rank_metric)
   ranks <- setNames(ranks$de.markers.rank_metric,
                     de.markers$gene)
@@ -50,23 +50,55 @@ seuratDEresToGSEARanks <- function(de.table) {
 #' gseaPerCluster(all.markers, pathways)
 #'
 #' @export
-gseaPerCluster <- function(all.markers, pathways) {
+gseaPerCluster <- function(ranks, pathways) {
   require(fgsea)
   require(dplyr)
   fgseaRes <- list()
-  for (ident in levels(as.factor(all.markers$cluster))) { 
-    ranks <- seuratDEresToGSEARanks(filter(all.markers, cluster == ident))
-    fgsea.out <- fgsea(pathways = pathways, stats = ranks,
+  for (ident in names(ranks)) { 
+    fgsea.out <- fgsea(pathways = pathways, stats = ranks[[ident]],
                                minSize=15,
                                maxSize=500,
-                               nperm=100000)
+                               nperm=100000, 
+                               nproc = parallel::detectCores())
     fgseaRes[[ident]] <- list()
-    fgseaRes[[ident]][["ranks"]] <- ranks
+    fgseaRes[[ident]][["ranks"]] <- ranks[[ident]]
     fgseaRes[[ident]][["fgsea"]] <- fgsea.out
   }
   return(fgseaRes)
 }
-
+#' Wrapper running fgsea
+#'
+#'
+#' @param RET list containing Seurat object
+#' @param pathways.list list of pathway sets to analyze
+#' @param prefixes list of prefixes to trim from name of each pathway
+#'
+#' @return list containing ranks and fgsea output for each ident
+#'
+#' @examples
+#' fgseaWrapper(RET, pathways.list)
+#'
+#' @export
+fgseaWrapper <- function(RET, pathways.list, prefixes = NULL) {
+  RET$fgsea <- list(pathways = list(), results = list(), prefixes=list(), ranks=list())
+  RET$plots$fgsea <- list()
+  for (ident in levels(as.factor(RET$all.markers.full$cluster))) { 
+    RET$fgsea$ranks[[ident]] <- seuratDEresToGSEARanks(filter(RET$all.markers.full, cluster == ident))
+  }
+  
+  for (i in 1:length(pathways.list)) {
+    path.name <- names(pathways.list)[i]
+    pathways <- pathways.list[[path.name]]
+    RET$fgsea$results[[path.name]] <- gseaPerCluster(RET$fgsea$ranks, c(pathways))
+    RET$fgsea$pathways[[path.name]] <- pathways
+    RET$fgsea$prefixes[[path.name]] <- ifelse(is.null(prefixes), "", prefixes[i])
+    RET$plots$fgsea[[path.name]] <- gseaTopPlots(fgseaRes = RET$fgsea$results[[path.name]],
+                                                 pathways = pathways, 
+                                                 path.name = path.name, 
+                                                 term.prefix = RET$fgsea$prefixes[[path.name]])
+  }
+  return(RET)
+}
 #' Plots enriched and depleted pathways in each cluster
 #'
 #'
@@ -196,35 +228,7 @@ GCD.plotGseaTable <- function (pathways, stats, fgseaRes, gseaParam = 1, term.pr
                         unlist(pads, recursive=FALSE)), ncol = 4, widths = colwidths)
 }
 
-#' Wrapper running fgsea
-#'
-#'
-#' @param RET list containing Seurat object
-#' @param pathways.list list of pathway sets to analyze
-#' @param prefixes list of prefixes to trim from name of each pathway
-#'
-#' @return list containing ranks and fgsea output for each ident
-#'
-#' @examples
-#' fgseaWrapper(RET, pathways.list)
-#'
-#' @export
-fgseaWrapper <- function(RET, pathways.list, prefixes = NULL) {
-  RET$fgsea <- list(pathways = list(), results = list(), prefixes=list())
-  RET$plots$fgsea <- list()
-  for (i in 1:length(pathways.list)) {
-    path.name <- names(pathways.list)[i]
-    pathways <- pathways.list[[path.name]]
-    RET$fgsea$results[[path.name]] <- gseaPerCluster(RET$all.markers.full, c(pathways))
-    RET$fgsea$pathways[[path.name]] <- pathways
-    RET$fgsea$prefixes[[path.name]] <- ifelse(is.null(prefixes), "", prefixes[i])
-    RET$plots$fgsea[[path.name]] <- gseaTopPlots(fgseaRes = RET$fgsea$results[[path.name]],
-                                                 pathways = pathways, 
-                                                 path.name = path.name, 
-                                                 term.prefix = RET$fgsea$prefixes[[path.name]])
-  }
-  return(RET)
-}
+
 #' Prints fgsea plots for Seurat object
 #'
 #'
@@ -313,7 +317,7 @@ correlateFgseaLeadingEdges <- function(RET, pval.thresh = 0.01, path.dbs.to.chec
 findLikelyLightChainIdent <- function(RET) {
   require("dplyr")
   require("tibble")
-  avg.exprs <- as.data.frame(rowMeans(GetAssayData(RET$seurat)))
+  avg.exprs <- as.data.frame(Matrix::rowMeans(GetAssayData(RET$seurat)))
   colnames(avg.exprs) <-c ("avg_expr")
   avg.exprs <- rownames_to_column(avg.exprs, var = "gene")
   IG.C.genes <- grep(pattern = "^IG[LK]C", x = avg.exprs$gene, value = TRUE)

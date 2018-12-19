@@ -206,7 +206,7 @@ seuratPCAWrapper <- function(RET, do.jackstraw = TRUE) {
 #'
 #'
 #' @param RET list containing Seurat object and plots
-#' @param dims.use dimensions to be used for clustering
+#' @param dims dimensions to be used for clustering
 #' @param resolution resolution to be used for clustering
 #'
 #' @return list containing clustered Seurat object and TSNE plots
@@ -215,10 +215,12 @@ seuratPCAWrapper <- function(RET, do.jackstraw = TRUE) {
 #' seuratClusterWrapper(RET)
 #'
 #' @export
-seuratClusterWrapper <- function(RET, dims.use = 1:10, resolution = 0.50) {
+seuratClusterWrapper <- function(RET, dims = 1:10, resolution = 0.50) {
   require(Seurat)
-  RET$seurat <- FindClusters(RET$seurat, dims.use = dims.use, resolution = resolution)
-  RET$seurat <- RunTSNE(RET$seurat, dims.use = dims.use)
+  RET$seurat <- FindNeighbors(object = RET$seurat, dims = dims)
+
+  RET$seurat <- FindClusters(RET$seurat, resolution = resolution)
+  RET$seurat <- RunTSNE(RET$seurat, dims = dims.use)
   RET$plots[["TSNE"]] <- TSNEPlot(RET$seurat, do.return = TRUE)
   return(RET)
 }

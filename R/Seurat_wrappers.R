@@ -107,8 +107,11 @@ seuratFilterWrapper <- function(SRT, min.genes = 200, max.genes = 5000, max.UMI 
   RET[["min.genes"]] <- min.genes
   RET[["max.genes"]] <- max.genes
   RET[["max.UMI"]] <- max.UMI
-  SRT@meta.data$nUMI <- SRT@meta.data$nCount_RNA
-  SRT@meta.data$nGene <- SRT@meta.data$nFeature_RNA
+  SRT <- AddMetaData(SRT, SRT@meta.data$nCount_RNA, col.name = "nGene")
+  SRT <- AddMetaData(SRT, SRT@meta.data$nFeature_RNA, col.name = "nUMI")
+
+  # SRT@meta.data$nUMI <- SRT@meta.data$nCount_RNA
+  # SRT@meta.data$nGene <- SRT@meta.data$nFeature_RNA
 
   oldCellCount <- ncol(SRT@assays[[SRT@active.assay]]@data )
   SRT <- SubsetData(SRT, subset.name = "nGene", low.threshold = min.genes)

@@ -19,8 +19,8 @@ scoreModules <- function(RET, modules) {
   for (module.name in names(modules)) {
     RET$modules[[module.name]] <- modules[[module.name]]
     print(paste("Scoring ", module.name))
-    RET$seurat <- AddModuleScore(RET$seurat, genes.list = modules[[module.name]],
-                                 ctrl.size = 100, enrich.name = module.name)
+    RET$seurat <- AddModuleScore(RET$seurat, features = modules[[module.name]],
+                                 ctrl = 100, name = module.name)
     RET$seurat@meta.data[[module.name]] <- RET$seurat@meta.data[[paste0(module.name, "1")]]
     print(paste("Completed", i, "of", length(modules)))
     i <- i + 1

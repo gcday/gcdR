@@ -49,7 +49,7 @@ correlationAcrossIdents <- function(RET, vars.to.corr, only.var = TRUE) {
   require("dplyr")
   require("tibble")
   all.correlations <- list()
-  exp_matrix <- as.matrix(RET$seurat@data)
+  exp_matrix <- as.matrix(GetAssayData(RET$seurat))
   if (only.var) {
     exp.sd <- apply(exp_matrix, 1, function(x){sd(as.numeric(x))})
     exp_matrix <- exp_matrix[exp.sd != 0,]
@@ -57,16 +57,16 @@ correlationAcrossIdents <- function(RET, vars.to.corr, only.var = TRUE) {
   # genes.to.use <- rownames(exp_matrix)
   exp_matrix <- rbind(exp_matrix,
                       as.matrix(t(FetchData(RET$seurat,
-                                            vars.all = names(RET$modules)))))
+                                            vars = names(RET$modules)))))
   exp_df <- data.frame(exp_matrix)
   
   # combining gene expression and module scores into a single matrix
   # vars.all = c(genes.to.use, names(RET$modules))
   idents.exprs = list()
-  for (ident in levels(as.factor(RET$seurat@ident))) {
+  for (ident in levels(as.factor(Idents(RET$seurat)))) {
     print(paste("Subsetting for ident:", ident))
     idents.exprs[[ident]] <- as.matrix(dplyr::select(exp_df, 
-                                              one_of(names(RET$seurat@ident[RET$seurat@ident == ident]))))
+                                              one_of(names(Idents(RET$seurat)[Idents(RET$seurat)== ident]))))
     ident.sd <- apply(idents.exprs[[ident]], 1, function(x){sd(as.numeric(x))})
     idents.exprs[[ident]] <- idents.exprs[[ident]][ident.sd != 0,]
   }
@@ -77,12 +77,14 @@ correlationAcrossIdents <- function(RET, vars.to.corr, only.var = TRUE) {
     RET$module.corrs <- list()
   }
   i <- 1
+  print(exp_matrix)
   for (var.name in vars.to.corr) {
+  	print(paste0("Calculating correlations for ", var.name, " [", i, " of ", length(vars.to.corr), "]"))
+    # print(exp_matrix[var.name,])
     var.corrs <- apply(exp_matrix, 1, function(x){cor(as.numeric(exp_matrix[var.name,]), x)})
     var.df <- data.frame(var.corrs, row.names = names(var.corrs))
     colnames(var.df) <- c("All cells")
     var.df <- rownames_to_column(var.df, var = "gene")
-    print(paste0("Calculating correlations for ", var.name, " [", i, " of ", length(vars.to.corr), "]"))
     i <- i + 1
     for (ident in names(idents.exprs)) {
       # print(paste("Ident:", ident))

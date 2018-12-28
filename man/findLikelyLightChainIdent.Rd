@@ -4,10 +4,12 @@
 \alias{findLikelyLightChainIdent}
 \title{Identifies light chain identity of sample}
 \usage{
-findLikelyLightChainIdent(RET)
+findLikelyLightChainIdent(RET, sample.variable = NULL)
 }
 \arguments{
 \item{RET}{list containing Seurat object}
+
+\item{sample.variable}{name distinguishing sample idents}
 }
 \value{
 updated \code{RET}

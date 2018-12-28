@@ -307,26 +307,63 @@ correlateFgseaLeadingEdges <- function(RET, pval.thresh = 0.01, path.dbs.to.chec
 #'
 #'
 #' @param RET list containing Seurat object
-#' 
+#' @param sample.variable name distinguishing sample idents
+#'
 #' @return updated \code{RET}
 #'
 #' @examples
 #' RET <- findLikelyLightChainIdent(RET)
 #'
 #' @export
-findLikelyLightChainIdent <- function(RET) {
-  require("dplyr")
-  require("tibble")
-  avg.exprs <- as.data.frame(Matrix::rowMeans(GetAssayData(RET$seurat)))
-  colnames(avg.exprs) <-c ("avg_expr")
-  avg.exprs <- rownames_to_column(avg.exprs, var = "gene")
+findLikelyLightChainIdent <- function(RET, sample.variable = NULL) {
+	ig.list <- list()
+	
+	if (!is.null(sample.variable)) {
+		old.idents <- Idents(RET$seurat)
+		Idents(RET$seurat) <- sample.variable
+		for (sample in levels(Idents(RET$seurat))) {
+			sub.SRT <- subset(RET$seurat, idents = c(sample))
+			igs <- seuratFindLikelyLightChainIdent(sub.SRT)
+			ig.list[[sample]] <- igs
+		}
+		Idents(RET$seurat) <- old.idents
+	} else {
+		ig.list[["all"]] <- seuratFindLikelyLightChainIdent(RET$seurat)
+	}
+	RET$ig.genes <- ig.list
+	return(RET)
+}
+
+
+
+# 	# 	}
+# 	# }
+#   igs <- seuratFindLikelyLightChainIdent(RET$seurat)
+#   RET$IG.light.V <- igs$top.V
+#   RET$IG.light.C <- igs$top.C
+#   return(RET)
+# }
+
+#' Identifies light chain identity of sample
+#'
+#'
+#' @param SRT Seurat object
+#' 
+#' @return IG.light.V, IG.light.C
+#'
+#' @examples
+#' RET <- findLikelyLightChainIdent(RET)
+#'
+#' @export
+seuratFindLikelyLightChainIdent <- function(SRT) {
+  avg.exprs <- as.data.frame(Matrix::rowMeans(GetAssayData(SRT)))
+  colnames(avg.exprs) <- c("avg_expr")
+  avg.exprs <- tibble::rownames_to_column(avg.exprs, var = "gene")
   IG.C.genes <- grep(pattern = "^IG[LK]C", x = avg.exprs$gene, value = TRUE)
   IG.V.genes <- grep(pattern = "^IG[LK]V", x = avg.exprs$gene, value = TRUE)
-  IG.C.exprs <- filter(avg.exprs, gene %in% IG.C.genes)
-  IG.V.exprs <- filter(avg.exprs, gene %in% IG.V.genes)
-  top.C <- top_n(IG.C.exprs, n=1, wt = avg_expr)
-  top.V <- top_n(IG.V.exprs, n=1, wt = avg_expr)
-  RET$IG.light.V <- top.V$gene
-  RET$IG.light.C <- top.C$gene
-  return(RET)
+  IG.C.exprs <- dplyr::filter(avg.exprs, gene %in% IG.C.genes)
+  IG.V.exprs <- dplyr::filter(avg.exprs, gene %in% IG.V.genes)
+  top.C <- dplyr::top_n(IG.C.exprs, n=1, wt = avg_expr)
+  top.V <- dplyr::top_n(IG.V.exprs, n=1, wt = avg_expr)
+  return(list(top.V = top.V$gene, top.C = top.C$gene))
 }

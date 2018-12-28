@@ -4,7 +4,7 @@
 \alias{seuratPCAWrapper}
 \title{Wrapper function to perform PCA and generate PCA plots for a Seurat object}
 \usage{
-seuratPCAWrapper(RET, do.jackstraw)
+seuratPCAWrapper(RET, do.jackstraw = FALSE)
 }
 \arguments{
 \item{RET}{list containing Seurat object and plots}

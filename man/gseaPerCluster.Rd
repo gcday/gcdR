@@ -4,7 +4,7 @@
 \alias{gseaPerCluster}
 \title{Finds enriched pathways in each cluster using fgsea}
 \usage{
-gseaPerCluster(all.markers, pathways)
+gseaPerCluster(ranks, pathways)
 }
 \arguments{
 \item{all.markers}{table of DE genes between conditions, returned by \code{\link[Seurat]{FindAllMarkers}}}

@@ -168,10 +168,17 @@ seuratVariableWrapper <- function(RET) {
   #                                      mean.function = ExpMean,
   #                                      dispersion.function = LogVMR,
   #                                      x.low.cutoff = 0.1, x.high.cutoff = 5,
-  #                                      y.cutoff = 0.5)
-  RET[["seurat"]] <- FindVariableFeatures(object = RET[["seurat"]],
-                                       dispersion.cutoff = c(0.5, Inf),
-                                       mean.cutoff = c(0.1, 8))
+  # #                                      y.cutoff = 0.5)
+  # RET[["seurat"]] <- FindVariableFeatures(object = RET[["seurat"]], 
+  # 	selection.method = 'mean.var.plot', 
+  # 	mean.cutoff = c(0.0125, 3), dispersion.cutoff = c(0.5, Inf))
+
+	RET[["seurat"]] <- FindVariableFeatures(object = RET[["seurat"]], 
+        selection.method = "vst", nfeatures = 5000)
+
+  # FindVariableFeatures(object = RET[["seurat"]],
+  #                                      dispersion.cutoff = c(0.5, Inf),
+  #                                      mean.cutoff = c(0.1, 8))
   #  
                                        # mean.function = FastExpMean,
                                        # dispersion.function = FastLogVMR,
@@ -179,7 +186,7 @@ seuratVariableWrapper <- function(RET) {
   # RET[["plots"]][["variable.genes"]] <- VariableGenePlot(object = RET[["seurat"]],
   #                                      x.low.cutoff = 0.1, x.high.cutoff = 5,
   #                                      y.cutoff = 0.5)
-  RET[["seurat"]] <- ScaleData(RET[["seurat"]])
+  RET[["seurat"]] <- ScaleData(RET[["seurat"]], vars.to.regress = c("nCount_RNA", "percent.mito"))
   return(RET)
 }
 
@@ -195,11 +202,12 @@ seuratVariableWrapper <- function(RET) {
 #' seuratPCAWrapper(RET)
 #'
 #' @export
-seuratPCAWrapper <- function(RET, do.jackstraw = TRUE) {
+seuratPCAWrapper <- function(RET, do.jackstraw = FALSE) {
   RET[["seurat"]] <- RunPCA(object =  RET[["seurat"]], pc.genes =  RET[["seurat"]]@var.genes, do.print = FALSE,
                   pcs.compute = 50)
   if (do.jackstraw) {
   	RET[["seurat"]] <- JackStraw(RET[["seurat"]], dims = 50)
+  	RET$seurat <- ScoreJackStraw(RET$seurat, dims = 50)
   }
   RET[["plots"]][["pc.elbow"]] <- ElbowPlot(RET[["seurat"]], ndims = 50)
   RET[["plots"]][["pca"]] <- DimPlot(RET[["seurat"]], dim.1 = 1, dim.2 = 2, reduction = "pca") 
@@ -225,7 +233,11 @@ seuratClusterWrapper <- function(RET, dims = 1:10, resolution = 0.50) {
 
   RET$seurat <- FindClusters(RET$seurat, resolution = resolution)
   RET$seurat <- RunTSNE(RET$seurat, dims = dims)
+  RET$seurat <- RunUMAP(RET$seurat, dims = dims, reduction = "pca")
+
   RET$plots[["TSNE"]] <- DimPlot(RET$seurat, label = T, reduction = "tsne")
+  RET$plots[["UMAP"]] <- DimPlot(RET$seurat, label = T, reduction = "umap")
+
   return(RET)
 }
 
@@ -249,7 +261,7 @@ seuratAllMarkers <- function(RET, do.fast = TRUE, do.full = FALSE) {
   }
   if (do.full) {
     print("Calculating full markers...")
-    RET[["all.markers.full"]] <- FindAllMarkers(RET$seurat, logfc.threshold = 0.05)
+    RET[["all.markers.full"]] <- FindAllMarkers(RET$seurat, logfc.threshold = 0, min.pct = 0)
   }
   return(RET)
 }
@@ -271,6 +283,7 @@ printSeuratMarkers <- function(RET) {
     print(kable(prettyPrintMarkers(RET$all.markers.quick, ident)))
   }
 }
+
 #' Renames idents of cells in a Seurat object
 #'
 #'
@@ -284,11 +297,16 @@ printSeuratMarkers <- function(RET) {
 #' @export
 renameIdents <- function(RET, new.idents) {
   require(Seurat)
-  for (i in 1:length(levels(RET$seurat@ident))) { 
-      RET$seurat <- RenameIdent(object = RET$seurat, old.ident.name = i - 1,
-            new.ident.name = new.idents[i])
+  # ident.lists = list()
+  # names(new.idents) <- levels(Idents(RET$seurat))
+  # unlist()
+  # RET$seurat <- RenameIdents()
+  ident.levels <- levels(RET$seurat)
+  for (i in 1:length(ident.levels)) {
+  		cells.use <- WhichCells(object = RET$seurat, idents = ident.levels[1])
+     	RET$seurat <- SetIdent(object = RET$seurat, cells = cells.use, value = new.idents[i])
   }
-  RET$plots[["TSNE"]] <- TSNEPlot(RET$seurat, do.return = TRUE, do.label = TRUE)
+  # RET$plots[["TSNE"]] <- TSNEPlot(RET$seurat, do.return = TRUE, do.label = TRUE)
   return(RET)
 }
 #' Renames idents of cells in a Seurat object
@@ -327,13 +345,19 @@ renameSeuratIdents <- function(srt.obj, new.idents) {
 makeMarkerHeatmaps <- function(RET, marker.lists) {
   require("Seurat")
   require("ggplot2")
-  RET$plots$markers <- list()
+  marker.plots <- list(violin = list(), feature = list(), dotplot = list())
+  # RET$plots$markers <- list()
   for (marked.group in names(marker.lists)) {
-    RET$plots$markers[[marked.group]] <- list()
+    # marker.plots$[[marked.group]] <- list()
+    markers <- marker.lists[[marked.group]][marker.lists[[marked.group]] %in% rownames(RET$seurat)]
+
     # RET$plots$markers[[marked.group]]$heatmap <- DoHeatmap(SubsetData(RET$seurat, max.cells.per.ident = 500), 
                                               # features = marker.lists[[marked.group]]) + ggtitle(marked.group)
-    RET$plots$markers[[marked.group]]$dotplot <- DotPlot(RET$seurat, features = marker.lists[[marked.group]],) + ggtitle(marked.group)
+    marker.plots$violin[[marked.group]] <- VlnPlot(RET$seurat, features = markers) #+ ggplot2::ggtitle(marked.group)
+    marker.plots$feature[[marked.group]] <- FeaturePlot(RET$seurat, features = markers, reduction = "umap") #+ ggplot2::ggtitle(marked.group)
+    marker.plots$dotplot[[marked.group]] <- DotPlot(RET$seurat, features = markers) + ggplot2::ggtitle(marked.group)
   }
+  RET$plots$markers <- marker.plots
   return(RET)
 }
 #' Prints heatmaps for Seurat object
@@ -350,7 +374,7 @@ makeMarkerHeatmaps <- function(RET, marker.lists) {
 #' @export
 printMarkerHeatmaps <- function(RET) {
   for(name in names(RET$plots$markers)) {
-    print(plot_grid(RET$plots$markers[[name]]$heatmap, RET$plots$markers[[name]]$dotplot, ncol=1))
+    print(plot_grid(RET$plots$markers[[name]]$violin, RET$plots$markers[[name]]$feature, ncol=1))
   }
 }
 

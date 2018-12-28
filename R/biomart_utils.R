@@ -1,0 +1,53 @@
+#' Renames human genes to mouse 
+#'
+#'
+#' @param genes list of human genes
+#' 
+#' @return list containing mouse homologs of human genes
+#'
+#' @examples
+#' convertHumanGeneList(genes)
+#'
+#' @export
+convertHumanGeneList <- function(genes){
+  require("biomaRt")
+  human = useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+  mouse = useMart("ensembl", dataset = "mmusculus_gene_ensembl")
+  genesV2 = getLDS(attributes = c("hgnc_symbol"), 
+                   filters = "hgnc_symbol", 
+                   values = genes, 
+                   mart = human, 
+                   attributesL = c("mgi_symbol"), 
+                   martL = mouse, 
+                   uniqueRows=T)
+  humanx <- unique(genesV2[, 2])
+  return(humanx)
+}
+
+#' Renames mouse genes to human 
+#'
+#'
+#' @param genes list of mouse genes
+#' 
+#' @return list containing human corresponding genes
+#'
+#' @examples
+#' convertMouseGeneList(genes)
+#'
+#' @export
+convertMouseGeneList <- function(de.table){
+  require("biomaRt")
+  human = useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+  mouse = useMart("ensembl", dataset = "mmusculus_gene_ensembl")
+  new.names <- getLDS(attributes = c("mgi_symbol"),
+                      filters = "mgi_symbol", 
+                      values = de.table$gene, mart = mouse,
+                      attributesL = c("hgnc_symbol"),
+                      martL = human, 
+                      uniqueRows=T)
+  renamed.table <- left_join(de.table, new.names, by = c("gene" = "MGI.symbol"))
+  renamed.table <- filter(renamed.table, !is.na(HGNC.symbol))
+  renamed.table$mouse_gene <- renamed.table$gene
+  renamed.table$gene <- renamed.table$HGNC.symbol
+  return(renamed.table)
+}

@@ -159,69 +159,7 @@ seuratTSNEPlotCCA <- function(RET) {
 }
 
 
-#' Finds DE genes in each cluster between conditions 
-#'
-#'
-#' @param RET list containing aligned Seurat object
-#' @param cond.var name of variable storing condition values in Seurat object's metadata.
-#' @param cond.1 first condition
-#' @param cond.2 second condition 
-#'
-#' @return dataframe containing DE markers between conditions
-#'
-#' @examples
-#' markersBetweenConditions(RET)
-#'
-#' @export
-markersBetweenConditions <- function(RET, cond.var, cond.1, cond.2) {
-  cond.markers <- seuratMarkersBetweenConditions(RET$seurat, cond.var, cond.1, cond.2)
-  if (!"markers" %in% names(RET@meta.list)) {
-    RET@meta.list$markers <- list()
-  }
-  RET@meta.list$markers[[paste0(cond.1, "_vs_", cond.2)]] <- cond.markers   
-  return(RET)
-}
 
-
-#' Finds DE genes in each cluster between conditions 
-#'
-#'
-#' @param SRT list containing aligned Seurat object
-#' @param cond.var name of variable storing condition values in Seurat object's metadata.
-#' @param cond.1 first condition
-#' @param cond.2 second condition 
-#'
-#' @return dataframe containing DE markers between conditions
-#'
-#' @examples
-#' seuratMarkersBetweenConditions(SRT)
-#'
-#' @export
-seuratMarkersBetweenConditions <- function(SRT, cond.var, cond.1, cond.2) {
-  SRT$celltype.cond <- paste0(Idents(SRT), "_", SRT[[cond.var]][[cond.var]])
-  cond.levels <- levels(SRT[[cond.var]])
-  old.idents <- levels(as.factor(Idents(SRT)))
-  Idents(SRT) <- "celltype.cond"
-  new.idents <- levels(as.factor(Idents(SRT)))
-  num.idents <- length(levels(old.idents))
-  cond.markers <- NULL
-  for (old.id in old.idents) {
-    id.1 <- paste0(old.id, "_", cond.1)
-    id.2 <- paste0(old.id, "_", cond.2)
-    message(id.1)
-    # cond.markers[[old.id]] <- FindMarkers()
-    if (id.1 %in% new.idents && id.2 %in% new.idents) {
-      SRT.subset <- subset(SRT, idents = c(id.1, id.2))
-      if (ncol(subset(SRT.subset, idents = c(id.1))) > 3 && ncol(subset(SRT.subset, idents = c(id.2))) > 3) {
-        markers <- FindMarkers(SRT.subset, ident.1 = id.1, ident.2 = id.2, 
-                          min.pct = 0, logfc.threshold = 0.05, verbose = T)
-        markers <- tibble::rownames_to_column(markers, var="gene")
-        cond.markers <- rbind(cond.markers, dplyr::mutate(markers, cluster = old.id))
-      }
-    }
-  }
-  return(cond.markers)
-}
 
 
 

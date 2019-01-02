@@ -387,7 +387,7 @@ seuratFindLikelyLightChainIdent <- function(SRT, mouse = FALSE, tumor.idents = N
 #'
 #' @export
 markersBetweenConditions <- function(RET, cond.var, cond.1, cond.2) {
-  cond.markers <- seuratMarkersBetweenConditions(RET$seurat, cond.var, cond.1, cond.2)
+  cond.markers <- seuratMarkersBetweenConditions(RET@seurat, cond.var, cond.1, cond.2)
   if (!"markers" %in% names(RET@meta.list)) {
     RET@meta.list$markers <- list()
   }

@@ -9,7 +9,7 @@ seuratAlignClusterWrapper(RET, dims.align = 1:20, resolution = 0.6)
 \arguments{
 \item{RET}{list containing Seurat objects for cond1 and cond2 and plots}
 
-\item{dims.align}{dimensions to be used for aligment and clustering}
+\item{dims.align}{dimensions to be used for alignment and clustering}
 
 \item{resolution}{resolution to be used for clustering}
 }

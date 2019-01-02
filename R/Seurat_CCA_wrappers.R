@@ -58,7 +58,7 @@ seuratCCAWrapper <- function(all.treatments, condition.1, condition.2) {
 #'
 #'
 #' @param RET list containing Seurat objects for cond1 and cond2 and plots
-#' @param dims.align dimensions to be used for aligment and clustering
+#' @param dims.align dimensions to be used for alignment and clustering
 #' @param resolution resolution to be used for clustering
 #' @return list containing aligned Seurat object and TSNE plot of the CCA
 #'
@@ -152,8 +152,8 @@ seuratConservedMarkerWrapper <- function(RET) {
 #'
 #' @export
 seuratTSNEPlotCCA <- function(RET) {
-  RET$plots$tsne.treatment <- TSNEPlot(RET$CCA, do.return = T, pt.size = 0.5, group.by = "treatment")
-  RET$plots$tsne.ident <- TSNEPlot(RET$CCA, do.label = T, do.return = T, pt.size = 0.5)
+  RET@meta.list$plots$tsne.treatment <- TSNEPlot(RET$CCA, do.return = T, pt.size = 0.5, group.by = "treatment")
+  RET@meta.list$plots$tsne.ident <- TSNEPlot(RET$CCA, do.label = T, do.return = T, pt.size = 0.5)
   return(RET)
   # plot_grid(p1, p2)
 }
@@ -175,10 +175,10 @@ seuratTSNEPlotCCA <- function(RET) {
 #' @export
 markersBetweenConditions <- function(RET, cond.var, cond.1, cond.2) {
   cond.markers <- seuratMarkersBetweenConditions(RET$seurat, cond.var, cond.1, cond.2)
-  if (!"markers" %in% names(RET)) {
-    RET$markers <- list()
+  if (!"markers" %in% names(RET@meta.list)) {
+    RET@meta.list$markers <- list()
   }
-  RET$markers[[paste0(cond.1, "_vs_", cond.2)]] <- cond.markers   
+  RET@meta.list$markers[[paste0(cond.1, "_vs_", cond.2)]] <- cond.markers   
   return(RET)
 }
 
@@ -201,16 +201,14 @@ seuratMarkersBetweenConditions <- function(SRT, cond.var, cond.1, cond.2) {
   SRT$celltype.cond <- paste0(Idents(SRT), "_", SRT[[cond.var]][[cond.var]])
   cond.levels <- levels(SRT[[cond.var]])
   old.idents <- levels(as.factor(Idents(SRT)))
-
   Idents(SRT) <- "celltype.cond"
   new.idents <- levels(as.factor(Idents(SRT)))
-  print(old.idents)
   num.idents <- length(levels(old.idents))
   cond.markers <- NULL
   for (old.id in old.idents) {
     id.1 <- paste0(old.id, "_", cond.1)
     id.2 <- paste0(old.id, "_", cond.2)
-    print(id.1)
+    message(id.1)
     # cond.markers[[old.id]] <- FindMarkers()
     if (id.1 %in% new.idents && id.2 %in% new.idents) {
       SRT.subset <- subset(SRT, idents = c(id.1, id.2))
@@ -224,5 +222,7 @@ seuratMarkersBetweenConditions <- function(SRT, cond.var, cond.1, cond.2) {
   }
   return(cond.markers)
 }
+
+
 
 

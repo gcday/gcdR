@@ -1,3 +1,10 @@
+ExtractField <- function(string, field = 1, delim = "_") {
+  fields <- as.numeric(x = unlist(x = strsplit(x = as.character(x = field), split = ",")))
+  if (length(x = fields) == 1) {
+    return(strsplit(x = string, split = delim)[[1]][field])
+  }
+  return(paste(strsplit(x = string, split = delim)[[1]][fields], collapse = delim))
+}
 #' Reads in 10x feature data
 #'
 #'

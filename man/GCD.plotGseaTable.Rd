@@ -5,7 +5,7 @@
 \title{Plots enriched and depleted pathways for a cluster}
 \usage{
 GCD.plotGseaTable(pathways, stats, fgseaRes, gseaParam = 1, term.prefix,
-  num.to.print, colwidths = c(10, 3, 0.8, 1.2))
+  num.to.print, colwidths = c(10, 4, 0.8, 1.6))
 }
 \arguments{
 \item{pathways}{list of pathways}

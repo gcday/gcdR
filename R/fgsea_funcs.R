@@ -1,19 +1,3 @@
-#' Finds enriched pathways using fgsea
-#'
-#'
-#' @param RET list containing Seurat object
-#' @param dbs pathway databases 
-#' 
-#' @return list containing Seurat object and marker heatmaps
-#'
-#' @examples
-#' makeMarkerHeatmaps(RET, marker.lists)
-#'
-#' @export
-findEnrichedPathways <- function(RET, dbs) {
-  RET[["enriched"]] <- getSigUpPathways(RET$all.markers, dbs)
-  return(RET)
-}
 #' Convers Seurat marker output to DE gene ranks
 #'
 #'
@@ -28,10 +12,15 @@ findEnrichedPathways <- function(RET, dbs) {
 seuratDEresToGSEARanks <- function(de.table) {
   # de.markers <- de.table
   de.markers <- mutate(de.table, p_val = ifelse(p_val == 0, 1E-300, p_val))
+  de.markers <- filter(de.markers, p_val < 0.01)
   # de.markers[!(is.na(de.markers$p_val)) & de.markers$p_val == 0,]$p_val <- 
   # de.markers <- de.markers[!duplicated(de.markers$gene),]
-  de.markers <- mutate(de.markers, rank_metric = -log10(p_val) * sign(avg_logFC))
+  de.markers <- mutate(de.markers, sign = ifelse(abs(avg_logFC) > 0.3, sign(avg_logFC), sign(pct.1 - pct.2)))
+  de.markers <- mutate(de.markers, rank_metric = -log10(p_val) * sign)
+  # de.markers <- mutate(de.markers, rank_metric = -log10(p_val) * sign(avg_logFC))
+
   de.markers <- de.markers[!duplicated(de.markers$rank_metric),]
+  de.markers <- de.markers[!duplicated(de.markers$gene),]
   ranks <- data.frame(de.markers$rank_metric)
   ranks <- setNames(ranks$de.markers.rank_metric,
                     de.markers$gene)
@@ -51,10 +40,10 @@ seuratDEresToGSEARanks <- function(de.table) {
 #'
 #' @export
 gseaPerCluster <- function(ranks, pathways) {
-  require(fgsea)
-  require(dplyr)
+  library(stats)
   fgseaRes <- list()
-  for (ident in names(ranks)) { 
+  for (ident in names(ranks)) {
+  	message(ident)
     fgsea.out <- fgsea(pathways = pathways, stats = ranks[[ident]],
                                minSize=15,
                                maxSize=500,
@@ -80,25 +69,93 @@ gseaPerCluster <- function(ranks, pathways) {
 #'
 #' @export
 fgseaWrapper <- function(RET, pathways.list, prefixes = NULL) {
-  RET$fgsea <- list(pathways = list(), results = list(), prefixes=list(), ranks=list())
+  RET$fgsea <- list(pathways = list(), results = list(), prefixes=list(), ranks=list(), plots=list())
   RET$plots$fgsea <- list()
-  for (ident in levels(as.factor(RET$all.markers.full$cluster))) { 
-    RET$fgsea$ranks[[ident]] <- seuratDEresToGSEARanks(filter(RET$all.markers.full, cluster == ident))
+  markers = "all.markers.quick"
+  if ("all.markers.full" %in% names(RET)) {
+  	markers = "all.markers.full"
   }
+  if (!markers %in% names(RET)) {
+  	warning("Missing marker genes")
+  }
+  # for (ident in levels(as.factor(RET[[markers]]$cluster))) { 
+  #   RET$fgsea$ranks[[ident]] <- seuratDEresToGSEARanks(filter(RET[[markers]], cluster == ident))
+  # }
+  RET$fgsea <- fgseaFromMarkers(RET[[markers]], pathways.list, prefixes)
   
+  # for (i in 1:length(pathways.list)) {
+  #   path.name <- names(pathways.list)[i]
+  #   pathways <- pathways.list[[path.name]]
+  #   RET$fgsea$results[[path.name]] <- gseaPerCluster(RET$fgsea$ranks, c(pathways))
+  #   RET$fgsea$pathways[[path.name]] <- pathways
+  #   RET$fgsea$prefixes[[path.name]] <- ifelse(is.null(prefixes), "", prefixes[i])
+  #   RET$plots$fgsea[[path.name]] <- gseaTopPlots(fgseaRes = RET$fgsea$results[[path.name]],
+  #                                                pathways = pathways, 
+  #                                                path.name = path.name, 
+  #                                                term.prefix = RET$fgsea$prefixes[[path.name]])
+  # }
+  return(RET)
+}
+#' Wrapper running fgsea
+#'
+#'
+#' @param markers DE marker table
+#' @param pathways.list list of pathway sets to analyze
+#' @param prefixes list of prefixes to trim from name of each pathway
+#'
+#' @return list containing ranks and fgsea output for each ident
+#'
+#' @examples
+#' fgseaFromMarkers(markers, pathways.list)
+#'
+#' @export
+fgseaFromMarkers <- function(markers, pathways.list, prefixes = NULL) {
+  fgsea <- list(pathways = list(), results = list(), prefixes=list(), ranks=list(), plots=list())
+  for (ident in levels(as.factor(markers$cluster))) { 
+    fgsea$ranks[[ident]] <- seuratDEresToGSEARanks(filter(markers, cluster == ident))
+  }
+
   for (i in 1:length(pathways.list)) {
     path.name <- names(pathways.list)[i]
     pathways <- pathways.list[[path.name]]
-    RET$fgsea$results[[path.name]] <- gseaPerCluster(RET$fgsea$ranks, c(pathways))
-    RET$fgsea$pathways[[path.name]] <- pathways
-    RET$fgsea$prefixes[[path.name]] <- ifelse(is.null(prefixes), "", prefixes[i])
-    RET$plots$fgsea[[path.name]] <- gseaTopPlots(fgseaRes = RET$fgsea$results[[path.name]],
+    fgsea$results[[path.name]] <- gseaPerCluster(fgsea$ranks, c(pathways))
+    fgsea$pathways[[path.name]] <- pathways
+    fgsea$prefixes[[path.name]] <- ifelse(is.null(prefixes), "", prefixes[i])
+    fgsea$plots[[path.name]] <- gseaTopPlots(fgseaRes = fgsea$results[[path.name]],
                                                  pathways = pathways, 
                                                  path.name = path.name, 
-                                                 term.prefix = RET$fgsea$prefixes[[path.name]])
+                                                 term.prefix = fgsea$prefixes[[path.name]])
   }
-  return(RET)
+  return(fgsea)
+
+
+  # RET$fgsea <- list(pathways = list(), results = list(), prefixes=list(), ranks=list())
+  # RET$plots$fgsea <- list()
+  # markers = "all.markers.quick"
+  # if ("all.markers.full" %in% names(RET)) {
+  #   markers = "all.markers.full"
+  # }
+  # if (!markers %in% names(RET)) {
+  #   warning("Missing marker genes")
+  # }
+  # for (ident in levels(as.factor(RET[[markers]]$cluster))) { 
+  #   RET$fgsea$ranks[[ident]] <- seuratDEresToGSEARanks(filter(RET[[markers]], cluster == ident))
+  # }
+  
+  # for (i in 1:length(pathways.list)) {
+  #   path.name <- names(pathways.list)[i]
+  #   pathways <- pathways.list[[path.name]]
+  #   RET$fgsea$results[[path.name]] <- gseaPerCluster(RET$fgsea$ranks, c(pathways))
+  #   RET$fgsea$pathways[[path.name]] <- pathways
+  #   RET$fgsea$prefixes[[path.name]] <- ifelse(is.null(prefixes), "", prefixes[i])
+  #   RET$plots$fgsea[[path.name]] <- gseaTopPlots(fgseaRes = RET$fgsea$results[[path.name]],
+  #                                                pathways = pathways, 
+  #                                                path.name = path.name, 
+  #                                                term.prefix = RET$fgsea$prefixes[[path.name]])
+  # }
 }
+
+
 #' Plots enriched and depleted pathways in each cluster
 #'
 #'
@@ -123,21 +180,15 @@ gseaTopPlots <- function(fgseaRes, path.name, pathways, term.prefix = "GO_", pva
   fgsea.plots <- list()
   for (ident in names(fgseaRes)) {
     fgs <- fgseaRes[[ident]]
-    sigPathways <- filter(fgs$fgsea, padj < pval.thresh) %>% arrange(padj)
+    sigPathways <- filter(fgs$fgsea, padj < pval.thresh) %>% arrange(pval)
     collapsedSigPathways <- collapsePathways(sigPathways, pathways, fgs$ranks)
+    # mainPathways <- sigPathways
     mainPathways <- filter(sigPathways, pathway %in% collapsedSigPathways$mainPathways)
-    # topPathwaysUp <- filter(fgs$fgsea, padj < pval.thresh, NES > 0) %>%
-    #   arrange(desc(NES)) %>% top_n(n = 10, wt = NES)
-    # topPathwaysDown <- filter(fgs$fgsea, padj < pval.thresh, NES < 0) %>%
-    #   arrange(NES) %>% top_n(n = -10, wt = NES)
-    # topPathwaysUp <- filter(mainPathways, NES > 0) %>%
-    #   arrange(desc(NES)) %>% top_n(n = 10, wt = NES)
-    # topPathwaysDown <- filter(mainPathways, NES < 0)%>%
-    #   arrange(NES) %>% top_n(n = -10, wt = NES)
+
     topPathwaysUp <- filter(mainPathways, NES > 0) %>%
-      arrange(desc(NES)) %>% top_n(n = -num.to.print, wt = padj)
+      arrange(desc(NES)) %>% top_n(n = -num.to.print, wt = pval)
     topPathwaysDown <- filter(mainPathways, NES < 0)%>%
-      arrange(NES) %>% top_n(n = -num.to.print, wt = padj)
+      arrange(NES) %>% top_n(n = -num.to.print, wt = pval)
     fgsea.plots[[ident]] <- list()
     fgsea.plots[[ident]]$up <- arrangeGrob(top=textGrob(paste("Up pathways from", path.name), 
                                                         gp = gpar(fontvsize=15, fontface="bold")),
@@ -177,7 +228,7 @@ gseaTopPlots <- function(fgseaRes, path.name, pathways, term.prefix = "GO_", pva
 #'
 #' @export
 GCD.plotGseaTable <- function (pathways, stats, fgseaRes, gseaParam = 1, term.prefix, num.to.print,
-                               colwidths = c(10, 3, 0.8, 1.2))
+                               colwidths = c(10, 4, 0.8, 1.6))
 {
   require("grid")
   require("gridExtra")
@@ -204,7 +255,7 @@ GCD.plotGseaTable <- function (pathways, stats, fgseaRes, gseaParam = 1, term.pr
                  panel.grid = element_blank(), axis.title = element_blank(), 
                  plot.margin = rep(unit(0, "null"), 4), panel.spacing = rep(unit(0, "null"), 4)), 
          textGrob(sprintf("%.2f", annotation$NES)), 
-         textGrob(sprintf("%.1e", annotation$padj)))
+         textGrob(sprintf("%.2e", annotation$pval)))
   })
   pads <- list()
   for (i in 0:(num.to.print-length(ps))) {
@@ -221,7 +272,7 @@ GCD.plotGseaTable <- function (pathways, stats, fgseaRes, gseaParam = 1, term.pr
           axis.title = element_blank(), 
           plot.margin = unit(c(0, 0, 0.5, 0), "npc"), panel.spacing = unit(c(0, 0, 0, 0), "npc"))
   
-  arrangeGrob(grobs = c(lapply(c("Pathway", "Gene ranks", "NES", "padj"), textGrob, 
+  arrangeGrob(grobs = c(lapply(c("Pathway", "Gene ranks", "NES", "pval"), textGrob, 
                                gp = gpar(fontface="bold")),
                         unlist(ps, recursive = FALSE), 
                         list(nullGrob(), rankPlot, nullGrob(), nullGrob()), 
@@ -262,6 +313,41 @@ printGseaPlots <- function(RET, redraw = F, path.dbs.to.check = NULL, ...) {
     }
   }
 }
+
+#' Prints fgsea plots for Seurat object
+#'
+#'
+#' @param RET list containing Seurat object
+#' @param redraw whether plots should be redrawn before plotting
+#' @param path.dbs.to.check if given, limit plotting to only these pathway sets
+#'
+#' @return list containing ranks and fgsea output for each ident
+#'
+#' @examples
+#' printGseaPlots(RET, pathways.list)
+#'
+#' @export
+printGseaPlotsFGSEA <- function(fgsea, redraw = F, path.dbs.to.check = NULL, ...) {
+  require("grid")
+  require("gridExtra")
+  if (is.null(path.dbs.to.check)) {
+    path.dbs.to.check <- names(fgsea$plots)
+  }
+  for (pathway in path.dbs.to.check) {
+    if (redraw) {
+      fgsea$plots[[pathway]] <- gseaTopPlots(fgseaRes = fgsea$results[[pathway]],
+                                                 pathways = fgsea$pathways[[pathway]],
+                                                 path.name = pathway,
+                                                 term.prefix = fgsea$prefixes[[pathway]], ...)
+    }
+    for (ident in names(fgsea$plots[[pathway]])) {
+      grid.arrange(top=textGrob(ident, gp = gpar(fontvsize=20, fontface="bold")),
+                   fgsea$plots[[pathway]][[ident]]$up,
+                   fgsea$plots[[pathway]][[ident]]$down)
+    }
+  }
+}
+
 #' Correlates genes in leading edges of enriched genes
 #'
 #'
@@ -355,15 +441,21 @@ findLikelyLightChainIdent <- function(RET, sample.variable = NULL) {
 #' RET <- findLikelyLightChainIdent(RET)
 #'
 #' @export
-seuratFindLikelyLightChainIdent <- function(SRT) {
+seuratFindLikelyLightChainIdent <- function(SRT, IGH.genes = NULL) {
+	if (is.null(IGH.genes)) {
+		IGH.genes <- c("IGHA1", "IGHA2", "IGHD", "IGHE", 
+										"IGHG1", "IGHG2", "IGHG3", "IGHG4", "IGHM")
+	}
   avg.exprs <- as.data.frame(Matrix::rowMeans(GetAssayData(SRT)))
   colnames(avg.exprs) <- c("avg_expr")
   avg.exprs <- tibble::rownames_to_column(avg.exprs, var = "gene")
   IG.C.genes <- grep(pattern = "^IG[LK]C", x = avg.exprs$gene, value = TRUE)
+  IGH.C.exprs <- dplyr::filter(avg.exprs, gene %in% IGH.genes)
   IG.V.genes <- grep(pattern = "^IG[LK]V", x = avg.exprs$gene, value = TRUE)
   IG.C.exprs <- dplyr::filter(avg.exprs, gene %in% IG.C.genes)
   IG.V.exprs <- dplyr::filter(avg.exprs, gene %in% IG.V.genes)
   top.C <- dplyr::top_n(IG.C.exprs, n=1, wt = avg_expr)
   top.V <- dplyr::top_n(IG.V.exprs, n=1, wt = avg_expr)
-  return(list(top.V = top.V$gene, top.C = top.C$gene))
+  heavy.C <- dplyr::top_n(IGH.C.exprs, n=1, wt = avg_expr)
+  return(list(light.V = top.V$gene, light.C = top.C$gene, heavy.C = heavy.C$gene))
 }

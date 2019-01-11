@@ -4,7 +4,7 @@
 \alias{seuratVariableWrapper}
 \title{Wrapper function to find variable genes in Seurat object}
 \usage{
-seuratVariableWrapper(RET)
+seuratVariableWrapper(RET, nfeatures = 2500, vars.to.regress = NULL)
 }
 \arguments{
 \item{RET}{list containing Seurat object and plots}

@@ -4,16 +4,16 @@
 \alias{gcdCellCycleScoring}
 \title{Performs cell cycle scoring}
 \usage{
-gcdCellCycleScoring(object, s.features, g2m.features, set.ident = FALSE)
+gcdCellCycleScoring(RET, s.features, g2m.features, set.ident = FALSE)
 }
 \arguments{
-\item{object}{Seurat object}
-
 \item{s.features}{list of features (genes) associated with S phase}
 
 \item{g2m.features}{list of features (genes) associated with G2/M phase}
 
 \item{set.ident}{whether to set idents of Seurat object}
+
+\item{object}{Seurat object}
 }
 \value{
 list containing Seurat object and TSNE plots (tsne.treatment and tsne.ident) of the CCA

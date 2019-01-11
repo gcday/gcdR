@@ -12,7 +12,8 @@
 setClass("gcdSeurat", 
   slots = c(
     seurat = "Seurat", 
-    meta.list = "list"
+    meta.list = "list",
+    info = "list"
   )
 )
 
@@ -39,7 +40,7 @@ scoreModules <- function(RET, modules) {
   data.avg <- Matrix::rowMeans(x = assay.data[rownames(RET@seurat), ])
   control.pool <- names(data.avg[data.avg != 0])
   for (module.name in names(modules)) {
-    RET@meta.list$modules[[module.name]] <- modules[[module.name]]
+    
     i <- i + 1
 
     # message(class(modules[[module.name]]))
@@ -51,6 +52,7 @@ scoreModules <- function(RET, modules) {
     if (length(features[[1]]) <= 1) {
     	next
     }
+    RET@meta.list$modules[[module.name]] <- features
     message("Scoring ", module.name, " (", i, " of ", length(modules), ")")
     RET@seurat <- AddModuleScore(RET@seurat, features = features,
                                  name = module.name, pool = control.pool, 
@@ -62,7 +64,6 @@ scoreModules <- function(RET, modules) {
   }
   return(RET)
 }
-
 
 #' Performs cell cycle scoring
 #'
@@ -78,7 +79,32 @@ scoreModules <- function(RET, modules) {
 #' gcdCellCycleScoring(RET, modules)
 #'
 #' @export
-gcdCellCycleScoring <- function (object, s.features, g2m.features, set.ident = FALSE) 
+gcdCellCycleScoring <- function (RET, s.features, g2m.features, set.ident = FALSE) 
+{
+    RET@seurat <- gcdSeuratCellCycleScoring(RET@seurat, s.features, g2m.features, set.ident)
+    if (!'modules' %in% names(RET@meta.list)) {
+   		RET@meta.list$modules <- list()
+  	}
+    RET@meta.list$modules["S.Score"] = list(s.features)
+    RET@meta.list$modules["G2M.Score"] = list(g2m.features)
+    return(RET)
+}
+
+#' Performs cell cycle scoring
+#'
+#'
+#' @param object Seurat object
+#' @param s.features list of features (genes) associated with S phase 
+#' @param g2m.features list of features (genes) associated with G2/M phase 
+#' @param set.ident whether to set idents of Seurat object 
+#' 
+#' @return list containing Seurat object and TSNE plots (tsne.treatment and tsne.ident) of the CCA
+#'
+#' @examples
+#' gcdCellCycleScoring(RET, modules)
+#'
+#' @export
+gcdSeuratCellCycleScoring <- function (object, s.features, g2m.features, set.ident = FALSE) 
 {
     name <- "Cell Cycle"
     features <- list(S.Score = s.features, G2M.Score = g2m.features)
@@ -119,6 +145,7 @@ gcdCellCycleScoring <- function (object, s.features, g2m.features, set.ident = F
         object[["old.ident"]] <- Idents(object = object)
         Idents(object = object) <- "Phase"
     }
+    object$CC.Difference <- object$S.Score - object$G2M.Score
     return(object)
 }
 
@@ -195,12 +222,12 @@ correlationAcrossIdents <- function(RET, vars.to.corr, only.var = TRUE) {
   return(RET)
 }
 
-getCorrLists <- function(vars.to.corr, exp_matrix) {
+getCorrLists <- function(vars.to.corr, exp_matrix, ident.name = "All cells") {
 	calcCorrs <- function(var.name) {
   	var.expr <- as.numeric(exp_matrix[var.name,])
   	var.corrs <- apply(exp_matrix, 1, function(x){cor(var.expr, x)})
     var.df <- data.frame(var.corrs, row.names = names(var.corrs))
-    colnames(var.df) <- c("All cells")
+    colnames(var.df) <- ident.name
     var.df <- rownames_to_column(var.df, var = "gene")
     return(var.df)
   }
@@ -222,7 +249,7 @@ getCorrLists <- function(vars.to.corr, exp_matrix) {
 #' correlateVariables(RET, vars.to.corr, True)
 #'
 #' @export
-correlateVariables <- function(RET, vars.to.corr, only.var = TRUE) {
+correlateVariables <- function(RET, vars.to.corr, only.var = TRUE, split.by = NULL) {
   require("dplyr")
   require("tibble")
   require("future.apply")
@@ -230,41 +257,45 @@ correlateVariables <- function(RET, vars.to.corr, only.var = TRUE) {
   exp_matrix <- as.matrix(GetAssayData(RET@seurat))
   if (only.var) {
   	message("Subsetting to variable genes only")
-  	exp_matrix <- as.matrix(t(FetchData(RET@seurat, vars = VariableFeatures(RET@seurat))))
+  	SRT <- FindVariableFeatures(RET@seurat,	selection.method = "vst", nfeatures = 5000)
+  	vars <- VariableFeatures(SRT)
+  	vars <- unique(c(vars, vars.to.corr))
+  	exp_matrix <- as.matrix(t(FetchData(RET@seurat, vars = vars)))
     # exp.sd <- apply(exp_matrix, 1, function(x){sd(as.numeric(x))})
     # exp_matrix <- exp_matrix[exp.sd != 0,]
   }
-  # genes.to.use <- rownames(exp_matrix)
   if ("modules" %in% names(RET@meta.list)) {
   	exp_matrix <- rbind(exp_matrix,
                       as.matrix(t(FetchData(RET@seurat,
                                             vars = names(RET@meta.list$modules)))))
   }
-  
-	RET@meta.list$module.corrs <- getCorrLists(vars.to.corr, exp_matrix)
+
+	module.corrs <- getCorrLists(vars.to.corr, exp_matrix)
+	if (!is.null(split.by)) {
+		RET@seurat$old.idents <- Idents(RET@seurat)
+		Idents(RET@seurat) <- split.by
+	}
+	for (ident in levels(RET@seurat)) {
+		message("Calculating corrs for ident:",ident)
+  	cell.names <- WhichCells(RET@seurat, idents = c(ident))
+  	ident.exprs <- exp_matrix[, c(cell.names)]
+  	ident.exprs.sd <- apply(ident.exprs, 1, function(x){sd(as.numeric(x))})
+    ident.exprs <- ident.exprs[ident.exprs.sd != 0,]
+    expressed.vars <- vars.to.corr[vars.to.corr %in% rownames(ident.exprs)]
+    if (length(expressed.vars) >= 1) {
+    	ident.corrs <- getCorrLists(expressed.vars, ident.exprs, ident.name = ident)
+  		for (var in expressed.vars) {
+  			module.corrs[[var]] <- dplyr::left_join(module.corrs[[var]], ident.corrs[[var]], by = "gene")
+  		}
+  	}
+  }
+  if (!is.null(split.by)) {
+		Idents(RET@seurat) <- RET@seurat$old.idents
+	}
+  RET@meta.list$module.corrs <- module.corrs
 	return(RET)
 }
-  # 	message("Calculating correlations for ", var.name, " [", i, " of ", length(vars.to.corr), "]")
-  #   # correlations across all idents
-  #   var.corrs <- apply(exp_matrix, 1, function(x){cor(as.numeric(exp_matrix[var.name,]), x)})
-  #   var.df <- data.frame(var.corrs, row.names = names(var.corrs))
-  #   colnames(var.df) <- c("All cells")
-  #   var.df <- rownames_to_column(var.df, var = "gene")
-  #   i <- i + 1
-  #   var.ident.corrs <- list()
 
-  #   for (ident in names(idents.exprs)) {
-  #     ident.expr <- idents.exprs[[ident]]
-  #     if (var.name %in% row.names(ident.expr)) {
-  #     	ident.corrs <- apply(ident.expr, 1, function(x){cor(as.numeric(ident.expr[var.name,]), x)})
-	 #      var.ident.df <- data.frame(ident.corrs, row.names = names(ident.corrs))
-	 #      colnames(var.ident.df) <- c(ident)
-	 #      var.ident.df <- rownames_to_column(var.ident.df, var = "gene")
-	 #      var.df <- left_join(var.df, var.ident.df, by = "gene")
-  #     }
-  #   }
-  #   RET@meta.list$module.corrs[[var.name]] <- var.df
-  # }
 
 # #' returns list of pathways
 # #'
@@ -312,7 +343,7 @@ findLikelyLightChainIdent <- function(RET, sample.variable = NULL, mouse = FALSE
 	# 	print(tumor.idents)
 	# 	SRT <- subset(RET@seurat, idents = tumor.idents)
 	# }
-	
+	ig.genes <- list(heavy.V = list(), heavy.C = list(), light.V = list(), light.C = list())
 	if (!is.null(sample.variable)) {
 		RET@seurat$old.idents <- Idents(RET@seurat)
 		Idents(RET@seurat) <- sample.variable
@@ -321,12 +352,18 @@ findLikelyLightChainIdent <- function(RET, sample.variable = NULL, mouse = FALSE
 			Idents(sub.SRT) <- "old.idents"
 			igs <- seuratFindLikelyLightChainIdent(sub.SRT, mouse, tumor.idents)
 			ig.list[[sample]] <- igs
-		}
+			ig.genes$heavy.V <- unique(c(unlist(ig.genes$heavy.V), igs$heavy.V))
+			ig.genes$heavy.C <- unique(c(unlist(ig.genes$heavy.C), igs$heavy.C))
+			ig.genes$light.V <- unique(c(unlist(ig.genes$light.V), igs$light.V))
+			ig.genes$light.C <- unique(c(unlist(ig.genes$light.C), igs$light.C))
+
+		}	
 		Idents(RET@seurat) <- RET@seurat$old.idents
 	} else {
 		ig.list[["all"]] <- seuratFindLikelyLightChainIdent(RET@seurat, mouse, tumor.idents)
 	}
 	RET@meta.list$ig.genes <- ig.list
+	RET@meta.list$all.igs <- ig.genes
 	return(RET)
 }
 
@@ -348,28 +385,43 @@ seuratFindLikelyLightChainIdent <- function(SRT, mouse = FALSE, tumor.idents = N
 		IGH.genes <- c("Igha", "Ighd", "Ighe", "Ighg1", "Ighg2b", "Ighg2c", "Ighg3", "Ighm")
 		light.pattern.V <- "^Ig[lk]v"
 		light.pattern.C <- "^Ig[lk]c"
+		IGHV.pattern <- "^Ighv"
 	} else {
 		IGH.genes <- c("IGHA1", "IGHA2", "IGHD", "IGHE", 
 										"IGHG1", "IGHG2", "IGHG3", "IGHG4", "IGHM")
 		light.pattern.V <- "^IG[LK]V"
 		light.pattern.C <- "^IG[LK]C"
+		IGHV.pattern <- "^IGHV"
 	}
 	if (!is.null(tumor.idents)) {
 		SRT <- subset(SRT, idents = tumor.idents)
 	}
-  avg.exprs <- as.data.frame(Matrix::rowMeans(GetAssayData(SRT)))
+  avg.exprs <- as.data.frame(Matrix::rowMeans(GetAssayData(SRT, slot = "counts")))
   colnames(avg.exprs) <- c("avg_expr")
   avg.exprs <- tibble::rownames_to_column(avg.exprs, var = "gene")
   IG.C.genes <- grep(pattern = light.pattern.C, x = avg.exprs$gene, value = TRUE)
   IGH.C.exprs <- dplyr::filter(avg.exprs, gene %in% IGH.genes)
+
+  IGH.V.genes <- grep(pattern = IGHV.pattern, x = avg.exprs$gene, value = TRUE) 
+  IGH.V.exprs <- dplyr::filter(avg.exprs, gene %in% IGH.V.genes)
+
   IG.V.genes <- grep(pattern = light.pattern.V, x = avg.exprs$gene, value = TRUE)
   IG.C.exprs <- dplyr::filter(avg.exprs, gene %in% IG.C.genes)
   IG.V.exprs <- dplyr::filter(avg.exprs, gene %in% IG.V.genes)
   # print(IG.V.exprs)
-  top.C <- dplyr::top_n(IG.C.exprs, n=5, wt = avg_expr)
-  top.V <- dplyr::top_n(IG.V.exprs, n=5, wt = avg_expr)
-  heavy.C <- dplyr::top_n(IGH.C.exprs, n=5, wt = avg_expr)
-  return(list(light.V = top.V$gene, light.C = top.C$gene, heavy.C = heavy.C$gene))
+  top.C <- dplyr::top_n(IG.C.exprs, n=3, wt = avg_expr) %>% dplyr::arrange(desc(avg_expr))
+  top.V <- dplyr::top_n(IG.V.exprs, n=3, wt = avg_expr) %>% dplyr::arrange(desc(avg_expr))
+  heavy.C <- dplyr::top_n(IGH.C.exprs, n=3, wt = avg_expr) %>% dplyr::arrange(desc(avg_expr))
+  heavy.V <- dplyr::top_n(IGH.V.exprs, n=3, wt = avg_expr) %>% dplyr::arrange(desc(avg_expr))
+  message(top.C)
+  message(top.V)
+  message(heavy.C)
+  message(heavy.V)
+  top.C <- dplyr::top_n(IG.C.exprs, n=1, wt = avg_expr)
+  top.V <- dplyr::top_n(IG.V.exprs, n=1, wt = avg_expr)
+  heavy.C <- dplyr::top_n(IGH.C.exprs, n=1, wt = avg_expr)
+  heavy.V <- dplyr::top_n(IGH.V.exprs, n=1, wt = avg_expr)
+  return(list(light.V = top.V$gene, light.C = top.C$gene, heavy.C = heavy.C$gene, heavy.V = heavy.V$gene))
 }
 
 #' Finds DE genes in each cluster between conditions 

@@ -51,7 +51,7 @@ gcdRead10X <- function (data.dir = NULL, gene.column = 2)
     if (!file.exists(matrix.loc)) {
       stop("Expression matrix file missing")
     }
-    data <- readMM(file = matrix.loc)
+    data <- Matrix::readMM(file = matrix.loc)
     cell.names <- readLines(barcode.loc)
     if (all(grepl(pattern = "\\-1$", x = cell.names))) {
       cell.names <- as.vector(x = as.character(x = sapply(X = cell.names, 

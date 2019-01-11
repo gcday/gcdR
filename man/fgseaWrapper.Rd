@@ -4,7 +4,7 @@
 \alias{fgseaWrapper}
 \title{Wrapper running fgsea}
 \usage{
-fgseaWrapper(RET, pathways.list, prefixes = NULL)
+fgseaWrapper(RET, pathways.list, prefixes = NULL, mouse = FALSE)
 }
 \arguments{
 \item{RET}{list containing Seurat object}
@@ -12,6 +12,8 @@ fgseaWrapper(RET, pathways.list, prefixes = NULL)
 \item{pathways.list}{list of pathway sets to analyze}
 
 \item{prefixes}{list of prefixes to trim from name of each pathway}
+
+\item{mouse}{whether to convert gene names prior to fgsea}
 }
 \value{
 list containing ranks and fgsea output for each ident

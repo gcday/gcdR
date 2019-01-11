@@ -11,8 +11,10 @@
 #' @export
 convertHumanGeneList <- function(genes){
   require("biomaRt")
-  human = useMart("ensembl", dataset = "hsapiens_gene_ensembl")
-  mouse = useMart("ensembl", dataset = "mmusculus_gene_ensembl")
+  human = useMart("ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl")
+  # human = useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+ 
+  mouse = useMart("ENSEMBL_MART_ENSEMBL", dataset = "mmusculus_gene_ensembl")
   genesV2 = getLDS(attributes = c("hgnc_symbol"), 
                    filters = "hgnc_symbol", 
                    values = genes, 
@@ -37,7 +39,7 @@ convertHumanGeneList <- function(genes){
 #' @export
 convertHumanPathwayList <- function(pathways.list){
 	require("biomaRt")
-  human = useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+  human = useMart("ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl")
   mouse = useMart("ensembl", dataset = "mmusculus_gene_ensembl")
   new.pathways = list()
 	for (i in 1:length(pathways.list)) {
@@ -81,8 +83,8 @@ convertMouseGeneList <- function(de.table){
                       attributesL = c("hgnc_symbol"),
                       martL = human, 
                       uniqueRows=T)
-  renamed.table <- left_join(de.table, new.names, by = c("gene" = "MGI.symbol"))
-  renamed.table <- filter(renamed.table, !is.na(HGNC.symbol))
+  renamed.table <- dplyr::left_join(de.table, new.names, by = c("gene" = "MGI.symbol"))
+  renamed.table <- dplyr::filter(renamed.table, !is.na(HGNC.symbol))
   renamed.table$mouse_gene <- renamed.table$gene
   renamed.table$gene <- renamed.table$HGNC.symbol
   return(renamed.table)

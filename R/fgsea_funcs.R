@@ -44,10 +44,10 @@ gseaPerCluster <- function(ranks, pathways) {
   fgseaRes <- list()
   for (ident in names(ranks)) {
   	message(ident)
-    fgsea.out <- fgsea(pathways = pathways, stats = ranks[[ident]],
+    fgsea.out <- fgsea::fgsea(pathways = pathways, stats = ranks[[ident]],
                                minSize=15,
                                maxSize=500,
-                               nperm=100000, 
+                               nperm=20000, 
                                nproc = parallel::detectCores())
     fgseaRes[[ident]] <- list()
     fgseaRes[[ident]][["ranks"]] <- ranks[[ident]]
@@ -61,27 +61,33 @@ gseaPerCluster <- function(ranks, pathways) {
 #' @param RET list containing Seurat object
 #' @param pathways.list list of pathway sets to analyze
 #' @param prefixes list of prefixes to trim from name of each pathway
-#'
+#' @param mouse whether to convert gene names prior to fgsea
 #' @return list containing ranks and fgsea output for each ident
 #'
 #' @examples
 #' fgseaWrapper(RET, pathways.list)
 #'
 #' @export
-fgseaWrapper <- function(RET, pathways.list, prefixes = NULL) {
-  RET$fgsea <- list(pathways = list(), results = list(), prefixes=list(), ranks=list(), plots=list())
-  RET$plots$fgsea <- list()
-  markers = "all.markers.quick"
-  if ("all.markers.full" %in% names(RET)) {
-  	markers = "all.markers.full"
+fgseaWrapper <- function(RET, pathways.list, prefixes = NULL, mouse = FALSE) {
+  # RET$fgsea <- list(pathways = list(), results = list(), prefixes=list(), ranks=list(), plots=list())
+  # RET$plots$fgsea <- list()
+  markers.name = "all.markers.quick"
+  if ("all.markers.full" %in% names(RET@meta.list)) {
+  	markers.name = "all.markers.full"
   }
-  if (!markers %in% names(RET)) {
+  if (!markers.name %in% names(RET@meta.list)) {
   	warning("Missing marker genes")
   }
+  markers <- RET@meta.list[[markers.name]]
+  # if (mouse) {
+  #   markers <- convertMouseGeneList(markers)
+  # }
+
+
   # for (ident in levels(as.factor(RET[[markers]]$cluster))) { 
   #   RET$fgsea$ranks[[ident]] <- seuratDEresToGSEARanks(filter(RET[[markers]], cluster == ident))
   # }
-  RET$fgsea <- fgseaFromMarkers(RET[[markers]], pathways.list, prefixes)
+  RET@meta.list$fgsea <- fgseaFromMarkers(markers, pathways.list, prefixes)
   
   # for (i in 1:length(pathways.list)) {
   #   path.name <- names(pathways.list)[i]
@@ -127,32 +133,6 @@ fgseaFromMarkers <- function(markers, pathways.list, prefixes = NULL) {
                                                  term.prefix = fgsea$prefixes[[path.name]])
   }
   return(fgsea)
-
-
-  # RET$fgsea <- list(pathways = list(), results = list(), prefixes=list(), ranks=list())
-  # RET$plots$fgsea <- list()
-  # markers = "all.markers.quick"
-  # if ("all.markers.full" %in% names(RET)) {
-  #   markers = "all.markers.full"
-  # }
-  # if (!markers %in% names(RET)) {
-  #   warning("Missing marker genes")
-  # }
-  # for (ident in levels(as.factor(RET[[markers]]$cluster))) { 
-  #   RET$fgsea$ranks[[ident]] <- seuratDEresToGSEARanks(filter(RET[[markers]], cluster == ident))
-  # }
-  
-  # for (i in 1:length(pathways.list)) {
-  #   path.name <- names(pathways.list)[i]
-  #   pathways <- pathways.list[[path.name]]
-  #   RET$fgsea$results[[path.name]] <- gseaPerCluster(RET$fgsea$ranks, c(pathways))
-  #   RET$fgsea$pathways[[path.name]] <- pathways
-  #   RET$fgsea$prefixes[[path.name]] <- ifelse(is.null(prefixes), "", prefixes[i])
-  #   RET$plots$fgsea[[path.name]] <- gseaTopPlots(fgseaRes = RET$fgsea$results[[path.name]],
-  #                                                pathways = pathways, 
-  #                                                path.name = path.name, 
-  #                                                term.prefix = RET$fgsea$prefixes[[path.name]])
-  # }
 }
 
 
@@ -184,7 +164,6 @@ gseaTopPlots <- function(fgseaRes, path.name, pathways, term.prefix = "GO_", pva
     collapsedSigPathways <- collapsePathways(sigPathways, pathways, fgs$ranks)
     # mainPathways <- sigPathways
     mainPathways <- filter(sigPathways, pathway %in% collapsedSigPathways$mainPathways)
-
     topPathwaysUp <- filter(mainPathways, NES > 0) %>%
       arrange(desc(NES)) %>% top_n(n = -num.to.print, wt = pval)
     topPathwaysDown <- filter(mainPathways, NES < 0)%>%
@@ -246,7 +225,7 @@ GCD.plotGseaTable <- function (pathways, stats, fgseaRes, gseaParam = 1, term.pr
     annotation <- fgseaRes[match(pn, fgseaRes$pathway), ]
     list(textGrob(substr(gsub(term.prefix,"",pn),1,55), just = "right", x = unit(0.95, "npc")), 
          ggplot() + geom_segment(aes(x = p, xend = p, y = 0, 
-                                     yend = statsAdj[p]), size = 0.2 ) + 
+                                     yend = statsAdj[p]), size = 0.2) + 
            scale_x_continuous(limits = c(0, length(statsAdj)), expand = c(0, 0)) + 
            scale_y_continuous(limits = c(-1, 1), expand = c(0, 0)) + 
            xlab(NULL) + ylab(NULL) + 
@@ -297,19 +276,19 @@ printGseaPlots <- function(RET, redraw = F, path.dbs.to.check = NULL, ...) {
   require("grid")
   require("gridExtra")
   if (is.null(path.dbs.to.check)) {
-    path.dbs.to.check <- names(RET$plots$fgsea)
+    path.dbs.to.check <- names(RET@meta.list$fgsea$plots)
   }
   for (pathway in path.dbs.to.check) {
     if (redraw) {
-      RET$plots$fgsea[[pathway]] <- gseaTopPlots(fgseaRes = RET$fgsea$results[[pathway]],
-                                                 pathways = RET$fgsea$pathways[[pathway]],
+      RET@meta.list$plots$fgsea[[pathway]] <- gseaTopPlots(fgseaRes = RET@meta.list$fgsea$results[[pathway]],
+                                                 pathways = RET@meta.list$fgsea$pathways[[pathway]],
                                                  path.name = pathway,
-                                                 term.prefix = RET$fgsea$prefixes[[pathway]], ...)
+                                                 term.prefix = RET@meta.list$fgsea$prefixes[[pathway]], ...)
     }
-    for (ident in names(RET$plots$fgsea[[pathway]])) {
+    for (ident in names(RET@meta.list$fgsea$plots[[pathway]])) {
       grid.arrange(top=textGrob(ident, gp = gpar(fontvsize=20, fontface="bold")),
-                   RET$plots$fgsea[[pathway]][[ident]]$up,
-                   RET$plots$fgsea[[pathway]][[ident]]$down)
+                   RET@meta.list$fgsea$plots[[pathway]][[ident]]$up,
+                   RET@meta.list$fgsea$plots[[pathway]][[ident]]$down)
     }
   }
 }
@@ -361,101 +340,50 @@ printGseaPlotsFGSEA <- function(fgsea, redraw = F, path.dbs.to.check = NULL, ...
 #' correlateFgseaLeadingEdges(RET, pval.thresh)
 #'
 #' @export
-correlateFgseaLeadingEdges <- function(RET, pval.thresh = 0.01, path.dbs.to.check = NULL) {
+correlateFgseaLeadingEdges <- function(RET, pval.thresh = 0.001, path.dbs.to.check = NULL, mouse = FALSE) {
   require("dplyr")
   leading.edges <- list()
   if(is.null(path.dbs.to.check)) {
-    path.dbs.to.check <- names(RET$plots$fgsea)
+    path.dbs.to.check <- names(RET@meta.list$fgsea$plots)
   }
   for (pathway in path.dbs.to.check) {
-    for (ident in names(RET$fgsea$results[[pathway]])) {
-      fgs <- RET$fgsea$results[[pathway]][[ident]]
-      sigPathways <- filter(fgs$fgsea, padj < pval.thresh)
-      leadingEdgeLists <- sigPathways$leadingEdge
-      names(leadingEdgeLists) <- sigPathways$pathway
+    fgseaRes <- RET@meta.list$fgsea$results[[pathway]]
+    for (ident in names(fgseaRes)) {
+      # print(ident)
+      fgs <- fgseaRes[[ident]]
+      sigPathways <- dplyr::filter(fgs$fgsea, padj < pval.thresh)
+      collapsedSigPathways <- collapsePathways(sigPathways, RET@meta.list$fgsea$pathways[[pathway]], fgs$ranks)
+      mainPathways <- filter(sigPathways, 
+        pathway %in% collapsedSigPathways$mainPathways)
+      # print(sigPathways)
+      topPathwaysUp <- filter(mainPathways, NES > 0) %>%
+        arrange(desc(NES)) %>% top_n(n = -10, wt = pval)
+      topPathwaysDown <- filter(mainPathways, NES < 0) %>%
+        arrange(NES) %>% top_n(n = -10, wt = pval)
+      topUpLists <- topPathwaysUp$leadingEdge
+      # names(topUpLists) <- topPathwaysUp$pathway
+      topDownLists <- topPathwaysDown$leadingEdge
+
+      leadingEdgeLists <- c(topUpLists, topDownLists) #mainPathways$leadingEdge
+      names(leadingEdgeLists) <- c(topPathwaysUp$pathway, topPathwaysDown$pathway)
+      # names(leadingEdgeLists) <- mainPathways$pathway
+      # print(leadingEdgeLists)
       for (path.name in names(leadingEdgeLists)) {
+        # print(path.name)
         if (path.name %in% names(leading.edges)) {
-          leading.edges[[path.name]] <- list(unique(c(unlist(leading.edges[[path.name]]), 
-                                                 leadingEdgeLists[[path.name]])))
+          leading.edges[[path.name]] <- unique(c(unlist(leading.edges[[path.name]]), 
+                                                 leadingEdgeLists[[path.name]]))
         } else {
-          leading.edges[[path.name]] <- list(leadingEdgeLists[[path.name]])
+          leading.edges[[path.name]] <- unique(c(unlist(leadingEdgeLists[[path.name]])))
         }
+        # if (mouse) {
+        #   leading.edges[[path.name]] <- convertHumanGeneList(leading.edges[[path.name]])
+        # }
       }
     }
   }
-  # print(leading.edges)
+
   RET <- scoreModules(RET, leading.edges)
   # RET <- correlateVars(RET, c(names(leading.edges)))
   return(RET)
-}
-
-#' Identifies light chain identity of sample
-#'
-#'
-#' @param RET list containing Seurat object
-#' @param sample.variable name distinguishing sample idents
-#'
-#' @return updated \code{RET}
-#'
-#' @examples
-#' RET <- findLikelyLightChainIdent(RET)
-#'
-#' @export
-findLikelyLightChainIdent <- function(RET, sample.variable = NULL) {
-	ig.list <- list()
-	
-	if (!is.null(sample.variable)) {
-		old.idents <- Idents(RET$seurat)
-		Idents(RET$seurat) <- sample.variable
-		for (sample in levels(Idents(RET$seurat))) {
-			sub.SRT <- subset(RET$seurat, idents = c(sample))
-			igs <- seuratFindLikelyLightChainIdent(sub.SRT)
-			ig.list[[sample]] <- igs
-		}
-		Idents(RET$seurat) <- old.idents
-	} else {
-		ig.list[["all"]] <- seuratFindLikelyLightChainIdent(RET$seurat)
-	}
-	RET$ig.genes <- ig.list
-	return(RET)
-}
-
-
-
-# 	# 	}
-# 	# }
-#   igs <- seuratFindLikelyLightChainIdent(RET$seurat)
-#   RET$IG.light.V <- igs$top.V
-#   RET$IG.light.C <- igs$top.C
-#   return(RET)
-# }
-
-#' Identifies light chain identity of sample
-#'
-#'
-#' @param SRT Seurat object
-#' 
-#' @return IG.light.V, IG.light.C
-#'
-#' @examples
-#' RET <- findLikelyLightChainIdent(RET)
-#'
-#' @export
-seuratFindLikelyLightChainIdent <- function(SRT, IGH.genes = NULL) {
-	if (is.null(IGH.genes)) {
-		IGH.genes <- c("IGHA1", "IGHA2", "IGHD", "IGHE", 
-										"IGHG1", "IGHG2", "IGHG3", "IGHG4", "IGHM")
-	}
-  avg.exprs <- as.data.frame(Matrix::rowMeans(GetAssayData(SRT)))
-  colnames(avg.exprs) <- c("avg_expr")
-  avg.exprs <- tibble::rownames_to_column(avg.exprs, var = "gene")
-  IG.C.genes <- grep(pattern = "^IG[LK]C", x = avg.exprs$gene, value = TRUE)
-  IGH.C.exprs <- dplyr::filter(avg.exprs, gene %in% IGH.genes)
-  IG.V.genes <- grep(pattern = "^IG[LK]V", x = avg.exprs$gene, value = TRUE)
-  IG.C.exprs <- dplyr::filter(avg.exprs, gene %in% IG.C.genes)
-  IG.V.exprs <- dplyr::filter(avg.exprs, gene %in% IG.V.genes)
-  top.C <- dplyr::top_n(IG.C.exprs, n=1, wt = avg_expr)
-  top.V <- dplyr::top_n(IG.V.exprs, n=1, wt = avg_expr)
-  heavy.C <- dplyr::top_n(IGH.C.exprs, n=1, wt = avg_expr)
-  return(list(light.V = top.V$gene, light.C = top.C$gene, heavy.C = heavy.C$gene))
 }

@@ -4,7 +4,7 @@
 \alias{correlateVariables}
 \title{Correlates modules/genes}
 \usage{
-correlateVariables(RET, vars.to.corr, only.var = TRUE)
+correlateVariables(RET, vars.to.corr, only.var = TRUE, split.by = NULL)
 }
 \arguments{
 \item{RET}{list containing Seurat object}

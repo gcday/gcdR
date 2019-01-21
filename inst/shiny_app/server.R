@@ -11,8 +11,7 @@ mydebug <- function(msg="[DEBUG]") {
 server <- function( input, output , session){
   DATA <- reactiveValues() 
   
-  openInitialRDS <- function() {
-    SRT <- readRDS( input$IMAGE$datapath) 
+  updateSeuratAndRunUMAP <- function(SRT) {
     dims = NULL
     if (utils::compareVersion(as.character(SRT@version), "3.0") != 1) {
       # pre Seurat 3.0, must update
@@ -21,11 +20,23 @@ server <- function( input, output , session){
       SRT <- UpdateSeuratObject(SRT)
     }
     if (!"umap" %in% names(SRT@reductions)) {
-      if (is.null(dims)) {
-        dims = SRT@commands$RunTSNE.pca$dims
-      }
-      SRT <- RunUMAP(SRT, dims = c(dims))
+      if (reticulate::py_module_available(module = 'umap')) {
+        if (is.null(dims)) {
+          dims = SRT@commands$RunTSNE.pca$dims
+        }
+        SRT <- RunUMAP(SRT, dims = c(dims))
+      } else {
+        showModal(modalDialog(title = "Warning!",
+        "Missing umap package, only t-SNE will be available. Please install through pip (e.g. pip install umap-learn).",
+        easyClose = T))
+        }
     }
+    return(SRT)
+  }
+  
+  openInitialRDS <- function() {
+    SRT <- readRDS( input$IMAGE$datapath) 
+    SRT <- updateSeuratAndRunUMAP(SRT)
     COUNTS <- apply( SRT@meta.data, 2, function(x) length(table( x )))
     DATA$CHOICES <- colnames( SRT@meta.data )[COUNTS<=100]
     selected.ident <- NULL
@@ -41,6 +52,19 @@ server <- function( input, output , session){
     numeric.meta.data <- colnames(SRT@meta.data)[sapply(SRT@meta.data, function(x) is.numeric(x))]
     
     DATA$GENES.OPT <- c(numeric.meta.data, rownames(SRT))
+    # dim.choices <- NULL
+    # if ("umap" in names(SRT@reductions)) dim.choices <- c(UMAP = "umap", `t-SNE` = "tsne")
+    # dim.choices <- ifelse("umap" %in% names(SRT@reductions), 
+    #                       list(UMAP = "umap", `t-SNE` = "tsne"), 
+    #                       list(`t-SNE` = "tsne"))
+    # print(dim.choices)
+    # updateRadioButtons(session, "DIM.REDUC", "Reduction",  
+    #              choices = c(dim.choices))
+    if ("umap" %in% names(SRT@reductions)) {
+      updateRadioButtons(session, "DIM.REDUC", "Reduction",  
+                         c(UMAP = "umap", `t-SNE` = "tsne"))
+    }
+    
     updateSelectizeInput(session, 'GENE','Gene', 
                          choices = DATA$GENES.OPT,
                          selected = NULL, server = T)

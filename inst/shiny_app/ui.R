@@ -32,8 +32,9 @@ ui <- shinyUI(fluidPage(
            # uiOutput("MAXX"),
            checkboxInput("LABELS", "Include Labels", FALSE),
            radioButtons("DIM.REDUC", "Reduction",  
-                          choices = c(UMAP = "umap", TSNE = "tsne"), 
-                          selected = "umap")),
+                          choices = c(`t-SNE` = "tsne"), selected = "tsne")),
+           # c(UMAP = "umap", TSNE = "tsne"), 
+                          # selected = "umap")),
              
       # column(3,
              # ,

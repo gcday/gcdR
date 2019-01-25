@@ -65,75 +65,6 @@ seuratStartFromCounts <- function(read.counts, project, min.genes = 200,
                              max.mito = max.mito, mito.prefix = mito.prefix))
 }
 
-# #' Wrapper function to perform initial filtering and normalization of a Seurat object
-# #'
-# #'
-# #' @param SRT Seurat object 
-# #' @param min.genes param for filtering
-# #' @param max.genes param for filtering
-# #' @param max.UMI param for filtering
-# #' @param max.mito param for filtering
-# #' @param mito.prefix prefix for mitochondrial genes ("^MT-" for hg19)
-# #' @return list containing plots and filtered Seurat object
-# #'
-# #' @examples
-# #' seuratFilterWrapper(SRT, min.genes = min.genes, max.genes = max.genes, max.UMI = max.UMI,
-# #'    max.mito = max.mito, mito.prefix = mito.prefix)
-# #'
-# #' @export
-# seuratFilterWrapper <- function(SRT, min.genes = 200, max.genes = 5000, max.UMI = 30000, 
-#                                 max.mito = 0.25, mito.prefix = "^MT-") {
-#   require("Seurat")
-#   RET <- list()
-#   PLOTS <- list()
-#   RET[["raw.cell.count"]] <- ncol(SRT@assays[[SRT@active.assay]]@data)
-#   RET[["min.genes"]] <- min.genes
-#   RET[["max.genes"]] <- max.genes
-#   RET[["max.UMI"]] <- max.UMI
-#   SRT <- AddMetaData(SRT, SRT@meta.data$nCount_RNA, col.name = "nUMI")
-#   SRT <- AddMetaData(SRT, SRT@meta.data$nFeature_RNA, col.name = "nGene")
-
-
-#   oldCellCount <- ncol(SRT@assays[[SRT@active.assay]]@data )
-#   SRT <- SubsetData(SRT, subset.name = "nGene", low.threshold = min.genes)
-#   RET[["under.min.genes"]] <-  oldCellCount - ncol(SRT@assays[[SRT@active.assay]]@data )
-#   oldCellCount <- ncol(SRT@assays[[SRT@active.assay]]@data)
-#   SRT <- SubsetData(SRT, subset.name = "nGene", high.threshold = max.genes)
-#   RET[["over.max.genes"]] <-  oldCellCount - ncol(SRT@assays[[SRT@active.assay]]@data )
-  
-#   mito.genes <- grep(pattern = mito.prefix, x = rownames(x = SRT@assays[[SRT@active.assay]]@data), value = TRUE)
-#   percent.mito <- Matrix::colSums(SRT@assays$RNA@counts[mito.genes, ]) / Matrix::colSums(SRT@assays$RNA@counts)
-#   SRT <- AddMetaData(object = SRT, metadata = percent.mito, col.name = "percent.mito")
-  
-#   PLOTS$pre.mito.UMI.filtering <-  VlnPlot(object = SRT,
-#                                            features = c("nGene", "nUMI", "percent.mito"),
-#                                            ncol = 3) + ggtitle("Before mito/UMI filtering")
-#   PLOTS$pre.filter.UMI.mito <- FeatureScatter(object = SRT, feature1 = "nUMI", feature2 = "percent.mito") + ggtitle("Before mito/UMI filtering")
-#   PLOTS$pre.filter.UMI.nGene <- FeatureScatter(object = SRT, feature1 = "nUMI", feature2 = "nGene") + ggtitle("Before mito/UMI filtering")
-
-#   oldCellCount <- ncol(SRT@assays[[SRT@active.assay]]@data)
-#   SRT <- SubsetData(SRT, subset.name = "nUMI", high.threshold = max.UMI)
-#   RET[["over.max.UMI"]] <- oldCellCount - ncol(SRT@assays[[SRT@active.assay]]@data )
-  
-#   oldCellCount <- ncol(SRT@assays[[SRT@active.assay]]@data )
-#   SRT <- SubsetData(SRT, subset.name = "percent.mito", high.threshold = max.mito)
-
-#   RET[["over.max.mito"]] <- oldCellCount - ncol(SRT@assays[[SRT@active.assay]]@data )
-#   PLOTS$post.mito.UMI.filtering <-  VlnPlot(object = SRT,
-#                                            features = c("nGene", "nUMI", "percent.mito"),
-#                                            ncol = 3) + ggtitle("After mito/UMI filtering")
-#   PLOTS$post.filter.UMI.mito <- FeatureScatter(object = SRT, feature1 = "nUMI", feature2 = "percent.mito") + ggtitle("After mito/UMI filtering")
-#   PLOTS$post.filter.UMI.nGene <- FeatureScatter(object = SRT, feature1 = "nUMI", feature2 = "nGene") + ggtitle("After mito/UMI filtering")
-
-
-#   SRT <- NormalizeData(object = SRT, normalization.method = "LogNormalize", scale.factor = 10000)
-#   RET@seurat <- SRT
-#   RET@meta.list$plots <- PLOTS
-#   RET <- seuratVariableWrapper(RET)
-#   RET <- seuratPCAWrapper(RET)
-#   return(RET)
-# }
-
 #' Wrapper function to perform initial filtering and normalization of a Seurat object
 #'
 #'
@@ -230,10 +161,8 @@ seuratFilterWrapper <- function(SRT, min.genes = 200, max.genes = 5000, min.UMI 
   SRT <- NormalizeData(object = SRT, normalization.method = "LogNormalize", scale.factor = 10000)
   RET.gcdSeurat <- new(Class = "gcdSeurat", 
   	seurat = SRT, meta.list = RET, info = INFO)
-  # RET@seurat <- SRT
   # RET.gcdSeurat <- seuratVariableWrapper(RET.gcdSeurat)
   # RET.gcdSeurat <- seuratPCAWrapper(RET.gcdSeurat)
-  # print(class(RET.gcdSeurat))
   return(RET.gcdSeurat)
 }
 
@@ -290,29 +219,8 @@ gcdPrintSeuratQC <- function(RET) {
 #'
 #' @export
 seuratVariableWrapper <- function(RET, nfeatures = 2500, vars.to.regress = NULL) {
-  # RET@seurat <- FindVariableGenes(object = RET@seurat, 
-  #                                      do.plot = FALSE,
-  #                                      mean.function = ExpMean,
-  #                                      dispersion.function = LogVMR,
-  #                                      x.low.cutoff = 0.1, x.high.cutoff = 5,
-  # #                                      y.cutoff = 0.5)
-  # RET@seurat <- FindVariableFeatures(object = RET@seurat, 
-  # 	selection.method = 'mean.var.plot', 
-  # 	mean.cutoff = c(0.0125, 3), dispersion.cutoff = c(0.5, Inf))
-
-	RET@seurat <- FindVariableFeatures(object = RET@seurat, 
-        selection.method = "vst", nfeatures = nfeatures)
-
-  # FindVariableFeatures(object = RET@seurat,
-  #                                      dispersion.cutoff = c(0.5, Inf),
-  #                                      mean.cutoff = c(0.1, 8))
-  #  
-                                       # mean.function = FastExpMean,
-                                       # dispersion.function = FastLogVMR,
-  RET@meta.list$plots[["variable.genes"]] <- VariableFeaturePlot(object = RET@seurat)
-  # RET@meta.list$plots[["variable.genes"]] <- VariableGenePlot(object = RET@seurat,
-  #                                      x.low.cutoff = 0.1, x.high.cutoff = 5,
-  #                                      y.cutoff = 0.5)
+	RET@seurat <- FindVariableFeatures(object = RET@seurat, selection.method = "vst", nfeatures = nfeatures)
+  RET@plots[["variable.genes"]] <- VariableFeaturePlot(object = RET@seurat)
   RET@seurat <- ScaleData(RET@seurat, vars.to.regress = vars.to.regress)
   return(RET)
 }
@@ -336,8 +244,8 @@ seuratPCAWrapper <- function(RET, do.jackstraw = FALSE) {
   	RET@seurat <- JackStraw(RET@seurat, dims = 50)
   	RET@seurat <- ScoreJackStraw(RET@seurat, dims = 50)
   }
-  RET@meta.list$plots$pc.elbow <- ElbowPlot(RET@seurat, ndims = 50)
-  RET@meta.list$plots$pca <- DimPlot(RET@seurat, dim.1 = 1, dim.2 = 2, reduction = "pca") 
+  RET@plots$pc.elbow <- ElbowPlot(RET@seurat, ndims = 50)
+  RET@plots$pca <- DimPlot(RET@seurat, dim.1 = 1, dim.2 = 2, reduction = "pca") 
   return(RET)
 }
 
@@ -361,10 +269,10 @@ seuratClusterWrapper <- function(RET, dims = 1:10, resolution = 0.50, do.TSNE = 
   RET@seurat <- FindClusters(RET@seurat, resolution = resolution)
   if (do.TSNE) {
    	RET@seurat <- RunTSNE(RET@seurat, dims = dims)
-  	RET@meta.list$plots[["TSNE"]] <- DimPlot(RET@seurat, label = T, reduction = "tsne", repel = T)
+  	RET@plots[["TSNE"]] <- DimPlot(RET@seurat, label = T, reduction = "tsne", repel = T)
   }
   RET@seurat <- RunUMAP(RET@seurat, dims = dims)
-  RET@meta.list$plots[["UMAP"]] <- DimPlot(RET@seurat, label = T, reduction = "umap", repel = T)
+  RET@plots[["UMAP"]] <- DimPlot(RET@seurat, label = T, reduction = "umap", repel = T)
   return(RET)
 }
 
@@ -435,8 +343,7 @@ renameIdents <- function(RET, new.idents) {
   if ("all.markers.quick" %in% names(RET@meta.list)) {
   	levels(RET@meta.list$all.markers.quick$cluster) <- new.idents
   }
-  # RET@meta.list$plot$TSNE <- DimPlot(RET@seurat, label = T, reduction = "tsne")
-  RET@meta.list$plots$UMAP <- DimPlot(RET@seurat, label = T, reduction = "umap")
+  RET@plots$UMAP <- DimPlot(RET@seurat, label = T, reduction = "umap")
   return(RET)
 }
 
@@ -456,20 +363,19 @@ makeMarkerHeatmaps <- function(RET, marker.lists) {
   require("Seurat")
   require("ggplot2")
   marker.plots <- list(violin = list(), feature = list(), dotplot = list())
-  # RET@meta.list$plots$markers <- list()
   for (marked.group in names(marker.lists)) {
-    # marker.plots$[[marked.group]] <- list()
     markers <- marker.lists[[marked.group]][marker.lists[[marked.group]] %in% rownames(RET@seurat)]
 
-    # RET@meta.list$plots$markers[[marked.group]]$heatmap <- DoHeatmap(SubsetData(RET@seurat, max.cells.per.ident = 500), 
+    # RET@plots$markers[[marked.group]]$heatmap <- DoHeatmap(SubsetData(RET@seurat, max.cells.per.ident = 500), 
                                               # features = marker.lists[[marked.group]]) + ggtitle(marked.group)
     marker.plots$violin[[marked.group]] <- VlnPlot(RET@seurat, features = markers, pt.size = 0	) #+ ggplot2::ggtitle(marked.group)
     # marker.plots$feature[[marked.group]] <- FeaturePlot(RET@seurat, features = markers, reduction = "umap") #+ ggplot2::ggtitle(marked.group)
     marker.plots$dotplot[[marked.group]] <- DotPlot(RET@seurat, features = markers) + ggplot2::ggtitle(marked.group)
   }
-  RET@meta.list$plots$markers <- marker.plots
+  RET@plots$markers <- marker.plots
   return(RET)
 }
+
 #' Prints heatmaps for Seurat object
 #'
 #'
@@ -483,12 +389,12 @@ makeMarkerHeatmaps <- function(RET, marker.lists) {
 #'
 #' @export
 printMarkerHeatmaps <- function(RET) {
-  for(name in names(RET@meta.list$plots$markers)) {
-    print(plot_grid(RET@meta.list$plots$markers[[name]]$violin, RET@meta.list$plots$markers[[name]]$feature, ncol=1))
+  for(name in names(RET@plots$markers)) {
+    print(plot_grid(RET@plots$markers[[name]]$violin, RET@plots$markers[[name]]$feature, ncol=1))
   }
 }
+
 #' Prints table as percentage values
-#'
 #'
 #' @param tbl table
 #' 

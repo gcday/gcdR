@@ -79,27 +79,7 @@ fgseaWrapper <- function(RET, pathways.list, prefixes = NULL, mouse = FALSE) {
   	warning("Missing marker genes")
   }
   markers <- RET@meta.list[[markers.name]]
-  # if (mouse) {
-  #   markers <- convertMouseGeneList(markers)
-  # }
-
-
-  # for (ident in levels(as.factor(RET[[markers]]$cluster))) { 
-  #   RET$fgsea$ranks[[ident]] <- seuratDEresToGSEARanks(filter(RET[[markers]], cluster == ident))
-  # }
   RET@meta.list$fgsea <- fgseaFromMarkers(markers, pathways.list, prefixes)
-  
-  # for (i in 1:length(pathways.list)) {
-  #   path.name <- names(pathways.list)[i]
-  #   pathways <- pathways.list[[path.name]]
-  #   RET$fgsea$results[[path.name]] <- gseaPerCluster(RET$fgsea$ranks, c(pathways))
-  #   RET$fgsea$pathways[[path.name]] <- pathways
-  #   RET$fgsea$prefixes[[path.name]] <- ifelse(is.null(prefixes), "", prefixes[i])
-  #   RET$plots$fgsea[[path.name]] <- gseaTopPlots(fgseaRes = RET$fgsea$results[[path.name]],
-  #                                                pathways = pathways, 
-  #                                                path.name = path.name, 
-  #                                                term.prefix = RET$fgsea$prefixes[[path.name]])
-  # }
   return(RET)
 }
 #' Wrapper running fgsea
@@ -280,7 +260,7 @@ printGseaPlots <- function(RET, redraw = F, path.dbs.to.check = NULL, ...) {
   }
   for (pathway in path.dbs.to.check) {
     if (redraw) {
-      RET@meta.list$plots$fgsea[[pathway]] <- gseaTopPlots(fgseaRes = RET@meta.list$fgsea$results[[pathway]],
+      RET@plots$fgsea[[pathway]] <- gseaTopPlots(fgseaRes = RET@meta.list$fgsea$results[[pathway]],
                                                  pathways = RET@meta.list$fgsea$pathways[[pathway]],
                                                  path.name = pathway,
                                                  term.prefix = RET@meta.list$fgsea$prefixes[[pathway]], ...)

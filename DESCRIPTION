@@ -12,7 +12,8 @@ Imports:
 	colorspace,
 	knitr,
 	kableExtra,
-	scales
+	scales,
+	ggtree
 Suggests:
 	fgsea
 

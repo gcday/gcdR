@@ -12,30 +12,30 @@ server <- function( input, output , session){
   DATA <- reactiveValues() 
   
   updateSeuratAndRunUMAP <- function(SRT) {
-    dims = NULL
+    # dims = NULL
+    DATA$dims <- NULL
     if (utils::compareVersion(as.character(SRT@version), "3.0") != 1) {
       # pre Seurat 3.0, must update
       message("Updating Seurat object to 3.0...")
-      dims = c(SRT@calc.params$RunTSNE$dims.use)
+      DATA$dims <- c(SRT@calc.params$RunTSNE$dims.use)
       SRT <- UpdateSeuratObject(SRT)
+    } else {
+      DATA$dims <- SRT@commands$RunTSNE.pca$dims
     }
     if (!"umap" %in% names(SRT@reductions)) {
       if (reticulate::py_module_available(module = 'umap')) {
-        if (is.null(dims)) {
-          dims = SRT@commands$RunTSNE.pca$dims
-        }
-        SRT <- RunUMAP(SRT, dims = c(dims))
+        SRT <- RunUMAP(SRT, dims = c(DATA$dims))
       } else {
         showModal(modalDialog(title = "Warning!",
         "Missing umap package, only t-SNE will be available. Please install through pip (e.g. pip install umap-learn).",
         easyClose = T))
-        }
-    }
+      }
+    } 
     return(SRT)
   }
   
   openInitialRDS <- function() {
-    SRT <- readRDS( input$IMAGE$datapath) 
+    SRT <- readRDS( input$IMAGE$datapath)
     SRT <- updateSeuratAndRunUMAP(SRT)
     COUNTS <- apply( SRT@meta.data, 2, function(x) length(table( x )))
     DATA$CHOICES <- colnames( SRT@meta.data )[COUNTS<=100]
@@ -51,18 +51,10 @@ server <- function( input, output , session){
     
     numeric.meta.data <- colnames(SRT@meta.data)[sapply(SRT@meta.data, function(x) is.numeric(x))]
     
-    DATA$GENES.OPT <- c(numeric.meta.data, rownames(SRT))
-    # dim.choices <- NULL
-    # if ("umap" in names(SRT@reductions)) dim.choices <- c(UMAP = "umap", `t-SNE` = "tsne")
-    # dim.choices <- ifelse("umap" %in% names(SRT@reductions), 
-    #                       list(UMAP = "umap", `t-SNE` = "tsne"), 
-    #                       list(`t-SNE` = "tsne"))
-    # print(dim.choices)
-    # updateRadioButtons(session, "DIM.REDUC", "Reduction",  
-    #              choices = c(dim.choices))
+    DATA$GENES.OPT <- c(numeric.meta.data, sort(rownames(SRT)))
     if ("umap" %in% names(SRT@reductions)) {
       updateRadioButtons(session, "DIM.REDUC", "Reduction",  
-                         c(UMAP = "umap", `t-SNE` = "tsne"))
+                         c(UMAP = "umap", `t-SNE` = "tsne"), selected = "umap")
     }
     
     updateSelectizeInput(session, 'GENE','Gene', 
@@ -101,7 +93,7 @@ server <- function( input, output , session){
     DATA$CHOICES <- colnames(DATA$orig.seurat@meta.data)[COUNTS<=100]
     
     numeric.meta.data <- colnames(DATA$orig.seurat@meta.data)[sapply(DATA$orig.seurat@meta.data, function(x) is.numeric(x))]
-    DATA$GENES.OPT <- c(numeric.meta.data, sort(rownames( GetAssayData(DATA$orig.seurat))))
+    DATA$GENES.OPT <- c(numeric.meta.data, sort(rownames(DATA$orig.seurat)))
     DATA$seurat <- DATA$orig.seurat
   })
   
@@ -163,7 +155,13 @@ server <- function( input, output , session){
       removeModal()
     } else {
       showModal(newNameModal(failed = TRUE))
-    }
+    }rst
+  })
+  
+  observeEvent(input$DO.MARKERS, {
+    req(DATA$orig.seurat)
+    DATA$all.markers <- FindAllMarkers(DATA$orig.seurat, only.pos = T)
+    output$DE.MARKERS <- renderDataTable({DATA$all.markers})
   })
 
   output$DOWNLOAD <- downloadHandler(
@@ -248,9 +246,7 @@ server <- function( input, output , session){
   }, ignoreNULL = F)
   
   output$DIM.REDUC <- renderPlot({
-    mydebug()
-    if (is.null(input$IMAGE)) return(NULL)
-    
+    req(DATA$seurat)
     dim.plt <- DimPlot(DATA$seurat,
                        label = input$LABELS,
                        label.size = 6,
@@ -285,6 +281,12 @@ server <- function( input, output , session){
               })
     )
   })
+  output$CLUSTER.TREE <- renderPlot({
+    req(DATA$orig.seurat)
+    print(DATA$dims)
+    DATA$orig.seurat <- BuildClusterTree(DATA$orig.seurat, dims = DATA$dims)
+    cowplot::plot_grid(ggtree(Tool(DATA$orig.seurat, slot = "BuildClusterTree")) + geom_tree() + theme_tree() + geom_tiplab())
+  })
 
   
   output$SPLIT.SUMMARY.1 <- renderUI({
@@ -311,27 +313,9 @@ server <- function( input, output , session){
         }, digits = -2)})
   )
   })
-  # output$SPLIT.SUMMARY.1 <- renderUI({
-  #   req(DATA$seurat, input$SPLIT.BY)
-  #   
-  # })
-  # output$SPLIT.SUMMARY.2 <- renderTable({
-  #   req(DATA$seurat, input$SPLIT.BY)
-  #   # if (is.null(input$IMAGE) | is.null(input$SPLIT.BY)) return(NULL)
-  #   # if (input$SPLIT.BY == "") return(NULL)
-  #   MAT <- as.data.frame.matrix((percent.table(table(Idents(DATA$seurat), DATA$orig.seurat[[input$SPLIT.BY]][[input$SPLIT.BY]]))))
-  #   MAT <- format( round( MAT, 2), nsmall=1, width = 5)
-  #   MAT <- cbind( rownames( MAT ), MAT )
-  #   colnames( MAT )[1] <- '.'
-  #   return(MAT)
-  # }, digits = -2)
   geneSummaryTable <- function(gene) {
-    # if (is.null(  input$IMAGE)  | is.null( input$GENE )  ) return(NULL)
     XX <- FetchData(DATA$seurat, vars = c(gene))[[gene]]
     GROUP.NAMES <- levels(Idents(DATA$seurat))
-    # GROUP.NAMES <- sort(as.character(unique(DATA$seurat@meta.data[,input$CLUSTER])))
-    # if( sum(gsub('^[[:digit:]]*$',"",GROUP.NAMES) == "") == length( GROUP.NAMES)){
-    #   GROUP.NAMES <- sort( as.numeric( GROUP.NAMES ))}
     XY <- DATA$seurat@meta.data[,input$CLUSTER]
     INDEX.X <- 1:nrow(DATA$seurat@meta.data)
     COUNT2 <- table( XY[INDEX.X] )
@@ -350,7 +334,6 @@ server <- function( input, output , session){
     return( XXX )
   }
 
-  # output$SUMMARY <- 
   output$GENE.SUMMARY <- renderUI({
     req(input$GENE, DATA$seurat)
     do.call(what = shiny::fluidPage,
@@ -360,12 +343,4 @@ server <- function( input, output , session){
             })
     )
   })
-                              # shiny::renderTable({
-                                
-                                # VlnPlot(DATA$seurat, features = c(gene),
-                                        # cols = DATA$COLS, pt.size = 0) + NoLegend()
-  #                             }))
-  #           })
-  #   )
-  # })
 }

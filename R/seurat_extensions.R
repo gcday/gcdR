@@ -14,6 +14,7 @@ setClass("gcdSeurat",
   slots = c(
     seurat = "Seurat", 
     meta.list = "list",
+    plots = "list",
     info = "list"
   )
 )
@@ -41,9 +42,7 @@ scoreModules <- function(RET, modules) {
   data.avg <- Matrix::rowMeans(x = assay.data[rownames(RET@seurat), ])
   control.pool <- names(data.avg[data.avg != 0])
   for (module.name in names(modules)) {
-    
     i <- i + 1
-
     # message(class(modules[[module.name]]))
     if (class(modules[[module.name]]) == "character") {
     	modules[[module.name]] = list(modules[[module.name]])
@@ -60,8 +59,6 @@ scoreModules <- function(RET, modules) {
                                  ctrl = min(vapply(X = features, FUN = length, 
             FUN.VALUE = numeric(length = 1))))
     RET@seurat@meta.data[[module.name]] <- RET@seurat@meta.data[[paste0(module.name, "1")]]
-    # message(paste("Completed", i, "of", length(modules)))
-    
   }
   return(RET)
 }
@@ -175,7 +172,6 @@ correlationAcrossIdents <- function(RET, vars.to.corr, only.var = TRUE) {
     exp.sd <- apply(exp_matrix, 1, function(x){sd(as.numeric(x))})
     exp_matrix <- exp_matrix[exp.sd != 0,]
   }
-  # genes.to.use <- rownames(exp_matrix)
   exp_matrix <- rbind(exp_matrix,
                       as.matrix(t(FetchData(RET@seurat,
                                             vars = names(RET@meta.list$modules)))))
@@ -298,34 +294,6 @@ correlateVariables <- function(RET, vars.to.corr, only.var = TRUE, split.by = NU
 }
 
 
-# #' returns list of pathways
-# #'
-# #'
-# #' @param RET list containing Seurat object
-# #' @param vars.to.corr variables to correlate ()
-# #' @param only.var if True, only consider named variables and not all modules
-# #' 
-# #' @return list containing Seurat object and TSNE plots (tsne.treatment and tsne.ident) of the CCA
-# #'
-# #' @examples
-# #' correlationAcrossIdents(RET, vars.to.corr, True)
-# #'
-# #' @export
-# getPathwayLists <- function() {
-#   require("fgsea")
-#   hallmark.pathways <- gmtPathways("scRNASEQ/MSIGDB/h.all.v6.2.symbols.gmt")
-#   pos.pathways <- gmtPathways("scRNASEQ/MSIGDB/c1.all.v6.2.symbols.gmt")
-#   CP.pathways <- gmtPathways("scRNASEQ/MSIGDB/c2.cp.v6.2.symbols.gmt")
-#   motif.pathways <- gmtPathways("scRNASEQ/MSIGDB/c3.all.v6.2.symbols.gmt")
-#   GO.BP.pathways <- gmtPathways("scRNASEQ/MSIGDB/c5.bp.v6.2.symbols.gmt")
-#   return(list(Hallmark = hallmark.pathways,
-#               Positional = pos.pathways,
-#               `Canonical Pathways` = CP.pathways, 
-#               `microRNA & TF motifs` = motif.pathways,
-#               `GO biological process` = GO.BP.pathways))
-# }
-
-
 #' Identifies light chain identity of sample
 #'
 #'
@@ -409,7 +377,6 @@ seuratFindLikelyLightChainIdent <- function(SRT, mouse = FALSE, tumor.idents = N
   IG.V.genes <- grep(pattern = light.pattern.V, x = avg.exprs$gene, value = TRUE)
   IG.C.exprs <- dplyr::filter(avg.exprs, gene %in% IG.C.genes)
   IG.V.exprs <- dplyr::filter(avg.exprs, gene %in% IG.V.genes)
-  # print(IG.V.exprs)
   top.C <- dplyr::top_n(IG.C.exprs, n=3, wt = avg_expr) %>% dplyr::arrange(desc(avg_expr))
   top.V <- dplyr::top_n(IG.V.exprs, n=3, wt = avg_expr) %>% dplyr::arrange(desc(avg_expr))
   heavy.C <- dplyr::top_n(IGH.C.exprs, n=3, wt = avg_expr) %>% dplyr::arrange(desc(avg_expr))
@@ -475,7 +442,6 @@ seuratMarkersBetweenConditions <- function(SRT, cond.var, cond.1, cond.2) {
     id.1 <- paste0(old.id, "_", cond.1)
     id.2 <- paste0(old.id, "_", cond.2)
     message(id.1)
-    # cond.markers[[old.id]] <- FindMarkers()
     if (id.1 %in% new.idents && id.2 %in% new.idents) {
       SRT.subset <- subset(SRT, idents = c(id.1, id.2))
       if (ncol(subset(SRT.subset, idents = c(id.1))) > 3 && ncol(subset(SRT.subset, idents = c(id.2))) > 3) {

@@ -292,11 +292,11 @@ seuratAllMarkers <- function(RET, do.fast = TRUE, do.full = FALSE) {
   require(Seurat)
   if (do.fast) {
     message("Calculating fast markers...")
-    RET@meta.list$all.markers.quick <- FindAllMarkers(RET@seurat)
+    RET@markers$all.markers.quick <- FindAllMarkers(RET@seurat)
   }
   if (do.full) {
     message("Calculating full markers...")
-    RET@meta.list$all.markers.full <- FindAllMarkers(RET@seurat, logfc.threshold = 0.05)
+    RET@markers$all.markers.full <- FindAllMarkers(RET@seurat, logfc.threshold = 0.05)
   }
   return(RET)
 }
@@ -329,7 +329,7 @@ printSeuratMarkers <- function(RET) {
 #' renameIdents(RET)
 #'
 #' @export
-renameIdents <- function(RET, new.idents) {
+renameAllIdents <- function(RET, new.idents) {
   levels(Idents(RET@seurat)) <- new.idents
   if ("fgsea" %in% names(RET@meta.list)) {
   	names(RET@meta.list$fgsea$ranks) <- new.idents
@@ -337,14 +337,36 @@ renameIdents <- function(RET, new.idents) {
   		names(RET@meta.list$fgsea$results[[pathway]]) <- new.idents
   	}
   }
-  if ("all.markers.full" %in% names(RET@meta.list)) {
+  if ("all.markers.full" %in% names(RET@markers)) {
   	levels(RET@meta.list$all.markers.full$cluster) <- new.idents
   }
-  if ("all.markers.quick" %in% names(RET@meta.list)) {
+  if ("all.markers.quick" %in% names(RET@markers)) {
   	levels(RET@meta.list$all.markers.quick$cluster) <- new.idents
   }
   RET@plots$UMAP <- DimPlot(RET@seurat, label = T, reduction = "umap")
   return(RET)
+}
+
+#' Renames selected groups of cells in a Seurat object
+#'
+#'
+#' @param RET list containing Seurat object and plots
+#' @param idents.to.rename list containing idents to rename
+#' @param new.idents new name for idents
+#' @return list containing renamed Seurat object and re-plotted TSNE 
+#'
+#' @examples
+#' renameIdents(RET)
+#'
+#' @export
+gcdRenameIdents <- function(RET, idents.to.rename, new.label) {
+  levels(RET@seurat)[levels(RET@seurat) %in% c(idents.to.rename)] <- new.label
+  for (marker.names in names(RET@markers)) {
+    message("renaming ", marker.names)
+    levels(RET@markers[[marker.names]]$cluster)[levels(RET@markers[[marker.names]]$cluster) %in% c(idents.to.rename)] <- new.label
+  }
+  return(RET)
+  # levels(DATA$orig.RET@seurat)[levels(DATA$orig.RET@seurat) %in% c(input$GRPS.TO.RENAME)] <- input$NEW.GRPS.NAME
 }
 
 #' Makes heatmaps for Seurat object

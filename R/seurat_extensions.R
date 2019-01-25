@@ -15,7 +15,8 @@ setClass("gcdSeurat",
     seurat = "Seurat", 
     meta.list = "list",
     plots = "list",
-    info = "list"
+    info = "list",
+    markers = "list"
   )
 )
 

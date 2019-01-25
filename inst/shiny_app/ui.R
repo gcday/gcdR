@@ -8,9 +8,11 @@ library( Seurat )
 library(scales)
 library(knitr)
 library(kableExtra)
-library(gcdR)
+devtools::load_all("/mnt/c/Users/grady/OneDrive - Leland Stanford Junior University/Mayo/scRNASEQ/gcdR")
+# library(gcdR)
 library(future)
 library(ggtree)
+library(dplyr)
 plan(multicore, workers = parallel::detectCores() - 1)
 
 
@@ -54,8 +56,8 @@ ui <- shinyUI(fluidPage(
                 tabPanel("MultiGene", uiOutput("MULTIGENE.PLOT")),
                 tabPanel("Group breakdown", uiOutput('SPLIT.SUMMARY.1')),
                 tabPanel("Gene stats", uiOutput("GENE.SUMMARY")),
-                tabPanel("Cluster tree", plotOutput("CLUSTER.TREE")),
-                tabPanel("DE markers", dataTableOutput("DE.MARKERS")))
+                tabPanel("Cluster tree", plotOutput("CLUSTER.TREE", width='600px', height='450px')),
+                tabPanel("DE markers", uiOutput("DE.MARKERS")))
   )
 ))
 

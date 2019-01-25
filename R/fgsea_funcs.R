@@ -71,11 +71,11 @@ gseaPerCluster <- function(ranks, pathways) {
 fgseaWrapper <- function(RET, pathways.list, prefixes = NULL, mouse = FALSE) {
   # RET$fgsea <- list(pathways = list(), results = list(), prefixes=list(), ranks=list(), plots=list())
   # RET$plots$fgsea <- list()
-  markers.name = "all.markers.quick"
-  if ("all.markers.full" %in% names(RET@meta.list)) {
-  	markers.name = "all.markers.full"
+  markers.name <- "all.markers.quick"
+  if ("all.markers.full" %in% names(RET@markers)) {
+  	markers.name <- "all.markers.full"
   }
-  if (!markers.name %in% names(RET@meta.list)) {
+  if (!markers.name %in% names(RET@markers)) {
   	warning("Missing marker genes")
   }
   markers <- RET@meta.list[[markers.name]]

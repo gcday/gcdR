@@ -1,3 +1,4 @@
+library(gcdR)
 mydebug <- function(msg="[DEBUG]") {
   DEBUG <- FALSE
   if (DEBUG) {
@@ -6,7 +7,7 @@ mydebug <- function(msg="[DEBUG]") {
 }
 
 
-server <- function( input, output , session){
+server <- function( input, output, session){
   DATA <- reactiveValues() 
   
   updateSeuratAndRunUMAP <- function(SRT) {
@@ -92,12 +93,15 @@ server <- function( input, output , session){
                          choices = c(None="", split.choices), 
                          selected = selected.split)
     
-    DATA$COLS <- hue_pal()(length(levels(Idents(RET@seurat))))
-    # DATA$COLS <- rainbow_hcl(length(levels(Idents(SRT)))) 
-    # DATA$COLS <-  rainbow(length(levels(Idents(SRT))))
+      
     DATA$orig.RET <- RET
     DATA$RET <- RET
     DATA$ACTIVE.FILTER <- F
+    DATA$COLS <- rainbow_hcl(length(levels(Idents(DATA$orig.RET@seurat))), c = 100, l = 80) 
+    
+    #DATA$COLS <- list(hue_pal()(length(levels(Idents(DATA$orig.RET@seurat)))),
+                      # rainbow_hcl(length(levels(Idents(DATA$orig.RET@seurat))), c = 90, l = 80),
+                      # rainbow_hcl(length(levels(Idents(DATA$orig.RET@seurat))), c = 100, l = 80))
     message(DATA$selected.ident)
   }
   
@@ -123,7 +127,6 @@ server <- function( input, output , session){
                 placeholder = paste0('new_', input$CLUSTER)),
       if (failed)
         div(tags$b("Group name already exists!", style = "color: red;")),
-      
       footer = tagList(
         modalButton("Cancel"),
         actionButton("OK.SAVE.GROUPS", "OK")
@@ -192,19 +195,15 @@ server <- function( input, output , session){
     # DATA$orig.RET <- seuratAllMarkers(DATA$orig.RET)
   })
   
-  output$DOWNLOAD <- downloadHandler(
-    filename = function() {
-      return(input$IMAGE$name)
-    },
-    content = function(file) {
-      saveRDS(DATA$orig.RET, file)
-  })
+  output$DOWNLOAD.DATA <- downloadHandler(filename = function() {return(input$IMAGE$name)},
+    content = function(file) {saveRDS(DATA$orig.RET, file)})
+  
   output$SPLIT.VAR <- renderUI({
     if (is.null( input$IMAGE ) | is.null(input$CLUSTER) ) return(NULL)
     message("updating SPLIT.BY")
     choices <- DATA$CHOICES[DATA$CHOICES != input$CLUSTER]
-    selected.split <- ifelse(length(choices)>= 1, choices[1], NULL)
-    selectInput('SPLIT.BY','Optional split value', choices = c(None="", choices), selected = selected.split, selectize = T)
+    selected.split <- ifelse(length(choices) >= 1, choices[1], NULL)
+    selectInput('SPLIT.BY', 'Optional split value', choices = c(None="", choices), selected = selected.split, selectize = T)
   })
 
   output$NAMES <- renderUI({
@@ -230,10 +229,7 @@ server <- function( input, output , session){
       } else {
         Idents(DATA$orig.RET@seurat) <- type.convert(DATA$orig.RET@seurat@meta.data[[input$CLUSTER]], as.is = T)
       }
-      DATA$COLS <-  hue_pal()(length(levels(Idents(DATA$orig.RET@seurat))))
-      # DATA$COLS <- rainbow_hcl(length(levels(Idents(SRT))))
-      # DATA$COLS <-  rainbow(length(levels(Idents(DATA$orig.RET@seurat))))
-      
+      DATA$COLS <- rainbow_hcl(length(levels(Idents(DATA$orig.RET@seurat))), c = 100, l = 80) 
       message("Updating Seurat idents...")
       DATA$RET <- DATA$orig.RET
     } else {
@@ -271,7 +267,6 @@ server <- function( input, output , session){
       print("Unnecessary filter update attempt.")
     }
   }, ignoreNULL = F)
-
   output$DIM.REDUC <- renderPlot({
     req(DATA$RET)
     dim.plt <- DimPlot(DATA$RET@seurat,
@@ -387,5 +382,93 @@ server <- function( input, output , session){
     )
   })
   
+
+  observeEvent(input$MARKERS.LIST.PATH$datapath, {
+    DATA$markers.list <- read_yaml(input$MARKERS.LIST.PATH$datapath)
+  })
+  # newNameModal <- function(failed = FALSE) {
+  #   modalDialog(
+  #     textInput("NEW.IDENTS", "Enter new name for current group assignments.",
+  #               placeholder = paste0('new_', input$CLUSTER)),
+  #     if (failed)
+  #       div(tags$b("Group name already exists!", style = "color: red;")),
+  #     footer = tagList(
+  #       modalButton("Cancel"),
+  #       actionButton("OK.SAVE.GROUPS", "OK")
+  #     )
+  #   )
+  # }
+  # observeEvent(input$EDIT.MARKERS, {
+  #   
+  # })
+  
+  output$MARKER.SETS <- renderUI({
+    fluidPage(
+      fluidRow(
+        column(width = 3, 
+             fileInput('MARKERS.LIST.PATH', 'Choose marker list file',
+                       multiple=FALSE,
+                       accept=c('.yaml'))),
+        column(width = 3, 
+             downloadButton("DOWNLOAD.MARKERS.LIST", "Save marker list")),
+        column(width = 3,
+               wellPanel(actionButton("EDIT.MARKERS", "Edit markers")))),
+      uiOutput("MARKER.DOTPLOTS"),
+      uiOutput("MARKER.FIGS")
+      )
+  })
+  
+  plotMultiFeatures <- function(markers.name, n.row = 2, n.col = 2, width = 800, height = 600) {
+    markers <- DATA$markers.list[[markers.name]]
+    split.markers <- split(markers, 
+                           ceiling(seq_along(markers)/(n.row * n.col)))
+    message("chunk1", split.markers)
+    return(do.call(fluidPage,
+                   purrr::map(names(split.markers),
+                             .f = function(markers.chunk){
+                               plt.width <- width * min(length(split.markers[[markers.chunk]]), n.col) / n.col
+                               plt.height <- height * min(ceiling(length(split.markers[[markers.chunk]]) / n.col), n.row) / n.row
+                               fluidRow(renderPlot({
+                                 # message("chunk2", split.markers[[markers.chunk]])
+                                 VlnPlot(DATA$RET@seurat, 
+                                         features = c(split.markers[[markers.chunk]]),
+                                         ncol = n.col,
+                                         pt.size = 0) + NoLegend()
+                                  # FeaturePlot(DATA$RET@seurat, 
+                                  #                     features = c(split.markers[[markers.chunk]]),
+                                  #                     reduction = input$DIM.REDUC,
+                                  #                     ncol = n.col)
+                                        }, width=plt.width,height=plt.height))
+                                 
+
+                             })))
+  }
+  output$MARKER.FIGS <- renderUI({
+    req(DATA$RET, DATA$markers.list)
+    do.call(tabsetPanel,
+            purrr::map(names(DATA$markers.list), 
+                       .f = function(markers.name){
+                         tabPanel(title=markers.name,
+                                  renderUI(plotMultiFeatures(markers.name)))
+                       }
+            )
+    )
+  })
+  output$MARKER.DOTPLOTS <- renderUI({
+    req(DATA$RET, DATA$markers.list)
+    do.call(what = shiny::tabsetPanel,
+            args = purrr::map(names(DATA$markers.list), 
+                              .f = function(markers.name){
+                                tabPanel(title=markers.name,
+                                         shiny::renderPlot({
+                                           DotPlot(DATA$orig.RET@seurat, 
+                                                   features = c(DATA$markers.list[[markers.name]]))
+                                         }, width=600,height=400))
+                              }
+            )
+    )
+  })
+  output$DOWNLOAD.MARKERS.LIST <- downloadHandler(filename = function() {return(input$MARKERS.LIST.PATH$name)},
+                                          content = function(file) {write_yaml(DATA$markers.list, file)})
   # navbarPage(
 }

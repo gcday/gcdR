@@ -13,7 +13,6 @@
 #' @importFrom ape drop.tip
 #' @importFrom stats setNames
 #'
-#' @export
 #'
 #' @aliases FindAllMarkersNodeShiny
 #'
@@ -27,6 +26,7 @@
 #' all.markers <- FindAllMarkers(object = pbmc_small, node = 4)
 #' head(x = all.markers)
 #'
+#' @export
 FindAllMarkersShiny <- function(
   object,
   assay = NULL,
@@ -45,6 +45,7 @@ FindAllMarkersShiny <- function(
   min.cells.group = 3,
   pseudocount.use = 1,
   return.thresh = 1e-2,
+  idents.use = NULL,
   ...
 ) {
   MapVals <- function(vec, from, to) {
@@ -57,6 +58,9 @@ FindAllMarkersShiny <- function(
   }
   if (is.null(x = node)) {
     idents.all <- sort(x = unique(x = Idents(object = object)))
+    if (!is.null(idents.use)) {
+      idents.all <- idents.all[idents.all %in% idents.use]
+    }
   } else {
     tree <- Tool(object = object, slot = 'BuildClusterTree')
     if (is.null(x = tree)) {

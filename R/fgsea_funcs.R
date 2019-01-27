@@ -115,7 +115,6 @@ fgseaFromMarkers <- function(markers, pathways.list, prefixes = NULL) {
   return(fgsea)
 }
 
-
 #' Plots enriched and depleted pathways in each cluster
 #'
 #'
@@ -142,7 +141,7 @@ gseaTopPlots <- function(fgseaRes, path.name, pathways, term.prefix = "GO_", pva
     fgs <- fgseaRes[[ident]]
     sigPathways <- filter(fgs$fgsea, padj < pval.thresh) %>% arrange(pval)
     collapsedSigPathways <- collapsePathways(sigPathways, pathways, fgs$ranks)
-    # mainPathways <- sigPathways
+
     mainPathways <- filter(sigPathways, pathway %in% collapsedSigPathways$mainPathways)
     topPathwaysUp <- filter(mainPathways, NES > 0) %>%
       arrange(desc(NES)) %>% top_n(n = -num.to.print, wt = pval)

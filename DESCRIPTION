@@ -3,6 +3,7 @@ Version: 0.1
 Encoding: UTF-8
 RoxygenNote: 6.1.1
 LazyData: true
+biocViews:
 Imports:
 	dplyr,
 	Seurat (>= 3.0),

@@ -10,7 +10,7 @@ library(scales)
 library(knitr)
 library(kableExtra)
 library(future)
-library(gcdR)
+# library(gcdR)
 library(ggtree)
 library(yaml)
 library(dplyr)
@@ -19,178 +19,123 @@ library(colorspace)
 plan(multicore, workers = parallel::detectCores() - 1)
 
 
-
-
 sidebar <- dashboardSidebar(
   fileInput('IMAGE','Choose RDS File',
             multiple=FALSE,
             accept=c('.RDS')),
-  conditionalPanel("input.IMAGE.name", {
-    downloadButton("DOWNLOAD.DATA", "Save RDS file")
-  }),
-  checkboxInput("LABELS", "Include Labels", FALSE),
+  downloadButton("DOWNLOAD.DATA", "Save RDS file"),
+  sidebarMenu(id = "sidebarTabs",
+    menuItem("Overview", tabName = "overview", icon = icon("dashboard")),
+    conditionalPanel("input.sidebarTabs == 'overview'",
+                      div(style = "margin-left: 10px;",
+                       checkboxInput("LABELS", "Include Labels", FALSE),
+                       actionButton("RECLUSTER", "Re-cluster"),
+                       selectizeInput('SPLIT.BY', 'Optional split value', 
+                                      choices = NULL, selected = NULL)
+                     )),
+    menuItem("Gene expression", icon = icon("dna"), tabName = "genePanel"),
+    conditionalPanel("input.sidebarTabs == 'genePanel'",
+                     div(style = "margin-left: 10px;",
+                         selectizeInput("GENE", "Gene", choices = NULL,
+                                        selected=NULL, multiple=T)
+                     )),
+    menuItem("DE genes", icon = icon("chart-bar"), tabName = "DEPanel"),
+    conditionalPanel("input.sidebarTabs == 'DEPanel'",
+                     div(style = "margin-left: 10px;",
+                         actionButton("DO.MARKERS", "Find DE markers")
+                     )),
+    menuItem("Marker sets", icon = icon("th"), tabName = "markerPanel"),
+    conditionalPanel("input.sidebarTabs == 'markerPanel'",
+                     div(style = "margin-left: 10px;",
+                         fileInput('MARKERS.LIST.PATH', 'Choose marker list file',
+                                   multiple=FALSE,
+                                   accept=c('.yaml')),
+                         radioButtons("MARKERS.TYPE", "Plot type", 
+                                      choices = c(Feature = "feature", Violin = "violin"),
+                                      selected = "violin")
+                     ))
+  ),
   uiOutput("DIM.REDUC.CHOICE"),
-  # radioButtons("DIM.REDUC", "Reduction",  
-  #              choices = c(`t-SNE` = "tsne"), selected = "tsne"),
-  selectizeInput("GENE", "Gene", choices = NULL,
-  selected=NULL, multiple=T),
+  
   selectizeInput('CLUSTER', 'Group cells by', choices = NULL, selected = NULL),
-  selectizeInput('SPLIT.BY', 'Alt. group by (optional)', 
-                 choices = NULL, selected = NULL),
+  
   selectizeInput('FILTER','Filter by', choices = c(None=""), selected = NULL),
   uiOutput("NAMES"),
-  actionButton("DO.MARKERS", "Find DE markers"),
+  
   actionButton("CHANGE.GRP.NAME", "Rename group label(s)"),
-  actionButton("RENAME.IDENT", "Save group labels")
-  # sidebarMenu(
-  #   menuItem("Gene Plots", tabName = "GENE.PLOTS")
-  # )
+  actionButton("RENAME.IDENT", "Save group labels"),
+  radioButtons("COLOR.PALETTE", "Palette",  
+                                       choices = c(`1` = 1, `2` = 2, `3` = 3, `4` = 4), selected = 1)
+  
 )
 body <- dashboardBody(
-  fluidRow(
-    box(title = "Dim Plot",
-        width = 10,
-        height = "650px",
-        collapsible = T,
-        plotOutput("DIM.REDUC", 
-                   width='auto', height='600px')
+  tabItems(
+    tabItem(tabName = "overview",
+            fluidRow(
+              div(class = "col-sm-12 col-md-10 col-lg-8",
+                  box(title = "Dim Plot",
+                      width='100%',
+                      height = "auto",
+                      plotOutput("DIM.REDUC",
+                                 width='100%', height='600px')
+                  )
+              )
+            ),
+            fluidRow(
+              div(class = "col-sm-12 col-md-9 col-lg-7",
+              box(title = "Cluster Tree",
+                  width='100%',
+                  height = "auto",
+                  plotOutput("CLUSTER.TREE", width='100%', height='350px')
+              ))
+            ),
+            fluidRow(
+              box(title = "Group breakdown",
+                  width = 12,
+                  height = "auto",
+                  div(style = 'overflow-x: scroll;', 
+                      uiOutput('SPLIT.SUMMARY.1'))
+                  )
+            )
+    ),
+    tabItem(tabName = "genePanel",
+            fluidRow(
+                box(title = "Gene analysis",
+                    width = 12,
+                    height = "1200px",
+                    uiOutput("GENE.PLOTS")
+                )
+              )
+    ),
+    tabItem(tabName = "markerPanel",
+            fluidRow(
+              box(title = "Markers",
+                  width = 12,
+                  height = "auto",
+                  uiOutput("MARKER.SETS"))
+            )
+    ),
+    tabItem(tabName = "DEPanel",
+            fluidRow(
+              box(title = "DE genes",
+                  width = 12,
+                  height = "auto",
+                  # div(style =  overflow-y: scroll',
+                  uiOutput("DE.MARKERS")
+              )
+          )
     )
-  ),
-  fluidRow(
-    box(title = "Cluster Tree",
-        width = 5,
-        height = "400px",
-        collapsible = T,
-        plotOutput("CLUSTER.TREE", width='auto', height='300px')
     )
-  ),
-  fluidRow(
-    box(title = "Gene analysis",
-        width = 12,
-        height = "1000px",
-        collapsible = T,
-        uiOutput("GENE.PLOTS")
-    )
-  ),
-  
-    # tabBox(
-    #   title = "Overview", width = 10,
-    #   # The id lets us use input$tabset1 on the server to find the current tab
-    #   id = "tabset1", height = "650px",
-    #   selected = "Dim.plot",
-    #   tabPanel("Dim.plot", "First tab content", 
-    #            plotOutput("DIM.REDUC", 
-    #                       width='auto', height='600px')),
-    #   tabPanel("Cluster.tree", "Cluster tree",
-    #            plotOutput("CLUSTER.TREE", width='auto', height='450px'))
-    #   # tabPanel("Tab2", "Tab content 2")
-    # )
-  # ),
-  br(),
-  fluidRow(
-    tabBox(
-      title = "Gene figures",
-      id = "GENE.PLOTS",
-      height = "600px",
-      width = 12, 
-      selected = "Genes",
-      tabPanel("Genes", div(style = 'overflow-x: scroll; overflow-y: scroll',
-                            uiOutput("MULTIGENE.PLOT"))),
-      # tabPanel("Genes", div(style = 'overflow-x: scroll; overflow-y: scroll', 
-      #                       uiOutput("MULTIGENE.PLOT"))),
-      tabPanel("Marker sets", div(style = 'overflow-x: scroll; overflow-y: scroll', 
-                                  uiOutput("MARKER.SETS")))
-      # tabPanel("Tab1", "Tab content 1"),
-      # tabPanel("Tab2", "Tab content 2"),
-    )),
-  fluidRow(
-    tabBox(
-      title = "Group/gene stats", width = 12,
-      height = "450px",
-      selected = "Group breakdown",
-      tabPanel("Group breakdown",
-               div(style = 'overflow-x: scroll; overflow-y: scroll', uiOutput('SPLIT.SUMMARY.1'))),
-      tabPanel("Gene stats",
-               div(style = 'overflow-x: scroll; overflow-y: scroll', uiOutput("GENE.SUMMARY"))),
-      tabPanel("DE markers",
-               div(style = 'overflow-x: scroll; overflow-y: scroll', uiOutput("DE.MARKERS"))))
-  )
-  # fluidRow(
-  #   uiOutput()
-  # )
-  # fluidRow(
-  #   tabItems(
-  #     tabItem(tabName = "GENE.PLOTS",
-  #             fluidRow(
-  #               tabBox(width = 12,height="500",
-  #                      tabPanel("Genes",
-  #                               uiOutput("nlp_sentences_tree")))))),
-  #   tabBox(
-  #     title = "Gene figures",
-  #     id = "GENE.PLOTS",
-  #     height = "600px",
-  #     width = 12, 
-  #     selected = "Genes",
-  #     tabPanel("Genes", div(style = 'overflow-x: scroll; overflow-y: scroll',
-  #                           uiOutput("MULTIGENE.PLOT"))),
-  #     # tabPanel("Genes", div(style = 'overflow-x: scroll; overflow-y: scroll', 
-  #     #                       uiOutput("MULTIGENE.PLOT"))),
-  #     tabPanel("Marker sets", div(style = 'overflow-x: scroll; overflow-y: scroll', 
-  #                                 uiOutput("MARKER.SETS")))
-  #     # tabPanel("Tab1", "Tab content 1"),
-  #     # tabPanel("Tab2", "Tab content 2"),
-  #   )),
-  # fluidRow(
-  #   tabBox(
-  #     title = "Group/gene stats", width = 12,
-  #     height = "450px",
-  #     selected = "Group breakdown",
-  #     tabPanel("Group breakdown", 
-  #              div(style = 'overflow-x: scroll; overflow-y: scroll', uiOutput('SPLIT.SUMMARY.1'))),
-  #     tabPanel("Gene stats", 
-  #              div(style = 'overflow-x: scroll; overflow-y: scroll', uiOutput("GENE.SUMMARY"))),
-  #     tabPanel("DE markers", 
-  #              div(style = 'overflow-x: scroll; overflow-y: scroll', uiOutput("DE.MARKERS"))))
-  # )
-    
 )
 
-# body <- dashboardBody(
-#   fluidRow(
-#     tabBox(
-#       title = "Overview",
-#       # The id lets us use input$tabset1 on the server to find the current tab
-#       id = "tabset1", height = "650px",
-#       selected = "Dim.plot",
-#       tabPanel("Dim.plot", "First tab content", 
-#                plotOutput("DIM.REDUC", 
-#                           width='800px', height='600px')),
-#       tabPanel("Cluster.tree", "Cluster tree",
-#                plotOutput("CLUSTER.TREE", width='600px', height='450px'))
-#       # tabPanel("Tab2", "Tab content 2")
-#     ),
-#     tabBox(
-#       title = "Group/gene stats",
-#       height = "250px",
-#       selected = "Group breakdown",
-#       tabPanel("Group breakdown", uiOutput('SPLIT.SUMMARY.1')),
-#       tabPanel("Gene stats", uiOutput("GENE.SUMMARY")),
-#       tabPanel("DE markers", uiOutput("DE.MARKERS"))
-#     )
-#   ),
-#   fluidRow(
-#     tabBox(
-#       title = "Gene figures",
-#       height = "600px",
-#       width = 12, 
-#       selected = "Genes",
-#       tabPanel("Genes", uiOutput("MULTIGENE.PLOT")),
-#       tabPanel("Marker sets", uiOutput("MARKER.SETS"))
-#       # tabPanel("Tab1", "Tab content 1"),
-#       # tabPanel("Tab2", "Tab content 2"),
-#     )
-#   )
-# )
+  
+  
+
+
+    
+
+
+
 options(shiny.maxRequestSize = 1000*1024^2)
 
 ui <- dashboardPage(

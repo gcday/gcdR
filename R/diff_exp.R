@@ -46,6 +46,7 @@ FindAllMarkersShiny <- function(
   pseudocount.use = 1,
   return.thresh = 1e-2,
   idents.use = NULL,
+  shiny = FALSE,
   ...
 ) {
   MapVals <- function(vec, from, to) {
@@ -86,8 +87,10 @@ FindAllMarkersShiny <- function(
   genes.de <- list()
   for (i in 1:length(x = idents.all)) {
     if (verbose) {
-      incProgress(1/length(x = idents.all), detail = paste0("Calculating cluster ", idents.all[i]))
       message("Calculating cluster ", idents.all[i])
+    } 
+    if (shiny) {
+      incProgress(1/length(x = idents.all), detail = paste0("Calculating cluster ", idents.all[i]))
     }
     genes.de[[i]] <- tryCatch(
       expr = {
@@ -236,21 +239,71 @@ seuratMarkersBetweenConditions <- function(SRT, cond.var, cond.1, cond.2) {
 #' @param RET list containing Seurat object and plots
 #' @param do.fast whether fast markers should be computed (default: True)
 #' @param do.full whether full markers should be computed (default: True)
+#' @param fast.threshold whether full markers should be computed (default: True)
 #' @return list containing clustered Seurat object and TSNE plots
 #'
 #' @examples
 #' seuratAllMarkers(RET)
 #'
 #' @export
-seuratAllMarkers <- function(RET, do.fast = TRUE, do.full = FALSE) {
+seuratAllMarkers <- function(RET, do.fast = TRUE, do.full = FALSE, fast.threshold = 0.25, shiny = F, idents.use = NULL) {
   require(Seurat)
   if (do.fast) {
     message("Calculating fast markers...")
-    RET@markers$all.markers.quick <- FindAllMarkers(RET@seurat)
+    # RET@markers[[RET@meta.list$active.ident]]
+    RET <- setMarkersByCluster(RET, "quick", 
+      FindAllMarkersShiny(RET@seurat, logfc.threshold = fast.threshold, shiny = shiny, idents.use = idents.use))
+    # if (shiny) {
+    #   RET@markers$quick[[ActiveIdent(RET)]] <- FindAllMarkersShiny(RET@seurat, logfc.threshold = fast.threshold)
+    # } else {
+    #   RET@markers$quick[[ActiveIdent(RET)]] <- FindAllMarkers(RET@seurat, logfc.threshold = fast.threshold)
+    
   }
   if (do.full) {
     message("Calculating full markers...")
-    RET@markers$all.markers.full <- FindAllMarkers(RET@seurat, logfc.threshold = 0.05)
+    RET <- setMarkersByCluster(RET, "full", 
+      FindAllMarkersShiny(RET@seurat, logfc.threshold = 0.05, shiny = shiny, idents.use = idents.use))
+    # if (shiny) {
+    #   RET@markers$full[[ActiveIdent(RET)]] <- FindAllMarkersShiny(RET@seurat, logfc.threshold = 0.05)
+    # } else {
+    #   RET@markers$full[[ActiveIdent(RET)]] <- FindAllMarkers(RET@seurat, logfc.threshold = 0.05)
+    # }
+    # RET@markers$all.markers.full <- FindAllMarkers(RET@seurat, logfc.threshold = 0.05)
+  }
+  return(RET)
+}
+
+#' Adds markers to cluster list 
+#'
+#' @param RET gcdSeurat
+#' @param markers.type name for markers (e.g. "quick" or "full")
+#' @param markers returned data frame from Seurat FindAllMarkers
+#' @return gcdSeurat
+#'
+#' @examples
+#' setMarkersByCluster(RET, markers.type, markers)
+#'
+#' @export
+setMarkersByCluster <- function(RET, markers.type, markers) {
+  ident.name <- ActiveIdent(RET)
+  if (! markers.type %in% names(RET@markers)) {
+    RET@markers[[markers.type]] <- list()
+  } 
+  if (ident.name %in% names(RET@markers[[markers.type]])) {
+    if (length(intersect(names(RET@markers[[markers.type]][[ident.name]]), 
+        levels(RET@seurat))) < 1) {
+      RET@markers[[markers.type]][[ident.name]] <- list()
+    }
+  } else {
+      RET@markers[[markers.type]][[ident.name]] <- list()
+  } 
+  # message(names(RET@markers[[markers.type]][[ident.name]]))
+  for (ident in levels(markers$cluster)) {
+    # message("Ident ", ident)
+    ident.markers <- dplyr::filter(markers, cluster == ident)
+    if (nrow(ident.markers) != 0) {
+      RET@markers[[markers.type]][[ident.name]][[ident]] <- ident.markers
+    }
   }
   return(RET)
 }

@@ -1,27 +1,3 @@
-#' gcdSeurat
-#'
-#' Replacing the simple list I had before with this, hopefully improving memory usage.
-#'
-#' @slot seurat Unnormalized data such as raw counts or TPMs
-#' @slot meta.list Normalized expression data
-#' 
-#' @import Seurat
-#' @name gcdSeurat
-#' @rdname gcdSeurat
-#' @exportClass gcdSeurat
-#'
-setClass("gcdSeurat", 
-  slots = c(
-    seurat = "Seurat", 
-    meta.list = "list",
-    plots = "list",
-    info = "list",
-    markers = "list"
-  )
-)
-
-
-
 #' Adds module scores to a Seurat object
 #'
 #'

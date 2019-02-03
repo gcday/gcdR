@@ -262,8 +262,17 @@ seuratPCAWrapper <- function(RET, do.jackstraw = FALSE) {
 #' seuratClusterWrapper(RET)
 #'
 #' @export
-seuratClusterWrapper <- function(RET, dims = 1:10, resolution = 0.50, do.TSNE = FALSE) {
+seuratClusterWrapper <- function(RET, dims = NULL, resolution = 0.50, do.TSNE = FALSE, do.UMAP = FALSE) {
   require(Seurat)
+  if (is.null(dims)) {
+    if (!is.null(RET@meta.list$dims)) {
+      dims <- RET@meta.list$dims
+    } else {
+      dims <- 1:10
+    }
+  } else {
+    RET@meta.list$dims <- dims
+  }
   RET@seurat <- FindNeighbors(object = RET@seurat, dims = dims)
 
   RET@seurat <- FindClusters(RET@seurat, resolution = resolution)
@@ -271,35 +280,14 @@ seuratClusterWrapper <- function(RET, dims = 1:10, resolution = 0.50, do.TSNE = 
    	RET@seurat <- RunTSNE(RET@seurat, dims = dims)
   	RET@plots[["TSNE"]] <- DimPlot(RET@seurat, label = T, reduction = "tsne", repel = T)
   }
-  RET@seurat <- RunUMAP(RET@seurat, dims = dims)
-  RET@plots[["UMAP"]] <- DimPlot(RET@seurat, label = T, reduction = "umap", repel = T)
+  if (do.UMAP) {
+    RET@seurat <- RunUMAP(RET@seurat, dims = dims)
+    RET@plots[["UMAP"]] <- DimPlot(RET@seurat, label = T, reduction = "umap", repel = T)
+  }
   return(RET)
 }
 
-#' Wrapper function to find markers between clusters for a Seurat object
-#'
-#'
-#' @param RET list containing Seurat object and plots
-#' @param do.fast whether fast markers should be computed (default: True)
-#' @param do.full whether full markers should be computed (default: True)
-#' @return list containing clustered Seurat object and TSNE plots
-#'
-#' @examples
-#' seuratAllMarkers(RET)
-#'
-#' @export
-seuratAllMarkers <- function(RET, do.fast = TRUE, do.full = FALSE) {
-  require(Seurat)
-  if (do.fast) {
-    message("Calculating fast markers...")
-    RET@markers$all.markers.quick <- FindAllMarkers(RET@seurat)
-  }
-  if (do.full) {
-    message("Calculating full markers...")
-    RET@markers$all.markers.full <- FindAllMarkers(RET@seurat, logfc.threshold = 0.05)
-  }
-  return(RET)
-}
+
 
 #' Prints markers distinguishing clusters in a Seurat object
 #'
@@ -318,56 +306,7 @@ printSeuratMarkers <- function(RET) {
   }
 }
 
-#' Renames idents of cells in a Seurat object
-#'
-#'
-#' @param RET list containing Seurat object and plots
-#' @param new.idents list containing new idents (in same order as current)
-#' @return list containing renamed Seurat object and re-plotted TSNE 
-#'
-#' @examples
-#' renameIdents(RET)
-#'
-#' @export
-renameAllIdents <- function(RET, new.idents) {
-  levels(Idents(RET@seurat)) <- new.idents
-  if ("fgsea" %in% names(RET@meta.list)) {
-  	names(RET@meta.list$fgsea$ranks) <- new.idents
-  	for (pathway in names(RET@meta.list$fgsea$results)) {
-  		names(RET@meta.list$fgsea$results[[pathway]]) <- new.idents
-  	}
-  }
-  if ("all.markers.full" %in% names(RET@markers)) {
-  	levels(RET@meta.list$all.markers.full$cluster) <- new.idents
-  }
-  if ("all.markers.quick" %in% names(RET@markers)) {
-  	levels(RET@meta.list$all.markers.quick$cluster) <- new.idents
-  }
-  RET@plots$UMAP <- DimPlot(RET@seurat, label = T, reduction = "umap")
-  return(RET)
-}
 
-#' Renames selected groups of cells in a Seurat object
-#'
-#'
-#' @param RET list containing Seurat object and plots
-#' @param idents.to.rename list containing idents to rename
-#' @param new.idents new name for idents
-#' @return list containing renamed Seurat object and re-plotted TSNE 
-#'
-#' @examples
-#' renameIdents(RET)
-#'
-#' @export
-gcdRenameIdents <- function(RET, idents.to.rename, new.label) {
-  levels(RET@seurat)[levels(RET@seurat) %in% c(idents.to.rename)] <- new.label
-  for (marker.names in names(RET@markers)) {
-    message("renaming ", marker.names)
-    levels(RET@markers[[marker.names]]$cluster)[levels(RET@markers[[marker.names]]$cluster) %in% c(idents.to.rename)] <- new.label
-  }
-  return(RET)
-  # levels(DATA$orig.RET@seurat)[levels(DATA$orig.RET@seurat) %in% c(input$GRPS.TO.RENAME)] <- input$NEW.GRPS.NAME
-}
 
 #' Makes heatmaps for Seurat object
 #'

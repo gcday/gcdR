@@ -8,13 +8,14 @@ Imports:
 	dplyr,
 	Seurat (>= 3.0),
 	shiny,
+	DT,
 	ggplot2,
 	purrr,
 	colorspace,
 	knitr,
 	kableExtra,
 	scales,
-	ggtree
+	ape
 Suggests:
 	fgsea
 

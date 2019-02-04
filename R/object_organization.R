@@ -1,3 +1,4 @@
+
 #' gcdSeurat
 #'
 #' Replacing the simple list I had before with this, hopefully improving memory usage.
@@ -16,7 +17,8 @@ setClass("gcdSeurat",
            meta.list = "list",
            plots = "list",
            info = "list",
-           markers = "list"
+           markers = "list",
+           fgsea = "list"
          )
 )
 
@@ -31,17 +33,17 @@ setClass("gcdSeurat",
 #' 
 #' @export
 #' 
-readSeuratRDStoGCD <- function(path) {
+readSeuratRDStoGCD <- function(path, shiny = FALSE) {
   IN.OBJ <- readRDS(path)
   RET <- new(Class = "gcdSeurat")
   if (class(IN.OBJ) == "gcdSeurat") {
-    RET <- IN.OBJ
+    RET <- gcdUpdateSeurat(RET = IN.OBJ, shiny = shiny)
   } else {
-    RET@seurat <- IN.OBJ
+    RET <- gcdUpdateSeurat(RET = NULL, SRT = IN.OBJ, shiny = shiny)
   }
-  if (!"active.ident" %in% names(RET@meta.list)) {
-    RET <- findActiveIdent(RET)
-  }
+  # if (!"active.ident" %in% names(RET@meta.list)) {
+  #   RET <- findActiveIdent(RET)
+  # }
   return(RET)
 }
 
@@ -53,23 +55,28 @@ readSeuratRDStoGCD <- function(path) {
 #'
 #' @export
 #'
-updateSeuratAndRunUMAP <- function(RET, shiny = T) {
+gcdUpdateSeurat <- function(RET = NULL, SRT = NULL, shiny = TRUE) {
+  if (is.null(RET)) {
+     RET <- new(Class = "gcdSeurat")
+  } else {
+    SRT <- RET@seurat
+  }
   dims <- NULL
   if (shiny) incProgress(amount = 0, message = "Checking Seurat object version...")
-  if (utils::compareVersion(as.character(RET@seurat@version), "3.0") != 1) {
+  if (utils::compareVersion(as.character(SRT@version), "3.0") != 1) {
     # pre Seurat 3.0, must update
     message("Updating Seurat object to 3.0...")
     if (shiny) {
       incProgress(amount = 0, message = "Updating Seurat object to 3.0...")
     }
-    dims <- c(RET@seurat@calc.params$RunTSNE$dims.use)
-    RET@seurat <- UpdateSeuratObject(RET@seurat)
+    dims <- c(SRT@calc.params$RunTSNE$dims.use)
+    SRT <- UpdateSeuratObject(SRT)
   }
   else {
-    for (name in names(RET@seurat@commands)) {
+    for (name in names(SRT@commands)) {
       message("command name: ", name)
-      if ("dims" %in% names(RET@seurat@commands[[name]]@params)) {
-        dims <- RET@seurat@commands[[name]]@params$dims
+      if ("dims" %in% names(SRT@commands[[name]]@params)) {
+        dims <- SRT@commands[[name]]@params$dims
         message("Using dims (", dims, ") from ", name, " command.")
         break
       }
@@ -79,13 +86,28 @@ updateSeuratAndRunUMAP <- function(RET, shiny = T) {
       message("Couldn't find dims in command history, using ", dims, " instead.")
     }
   }
+  RET@seurat <- SRT
+  RET@meta.list$dims <- dims
+  return(RET)
+}
+
+#' Reads Seurat/gcdSeurat object and converts it to updated gcdSeurat
+#'
+#'
+#' @param RET gcdSeurat object
+#' @return RET with meta.list modified to inclue active.ident
+#'
+#' @export
+#'
+gcdRunUMAP <- function(RET, shiny = TRUE) {
+  
   UMAP.present <- T
   if (shiny) incProgress(amount = 0.3, message = "Checking for UMAP...")
   if (!"umap" %in% names(RET@seurat@reductions)) {
     if (reticulate::py_module_available(module = 'umap')) {
       if (shiny) incProgress(amount = 0, message = "Running UMAP...")
 
-      RET@seurat <- RunUMAP(RET@seurat, dims = c(dims))
+      RET@seurat <- RunUMAP(RET@seurat, dims = c(RET@meta.list$dims))
     } else if (shiny) {
       showModal(modalDialog(title = "Warning!",
                             "Missing umap package, only t-SNE will be available. Please install through pip (e.g. pip install umap-learn).",
@@ -98,7 +120,6 @@ updateSeuratAndRunUMAP <- function(RET, shiny = T) {
   } else {
     RET$meta.list$reductions <- list(`t-SNE` = "tsne")
   }
-  RET@meta.list$dims <- dims
   if (shiny) incProgress(amount = 0.2, message = "Building cluster tree...")
   # RET@seurat <- BuildClusterTree(RET@seurat, dims = dims)
   return(RET)
@@ -269,7 +290,36 @@ IdentsSaved.gcdSeurat <- function(object, ...) {
   # return(object@meta.list$active.ident)
 }
 
-
+#' Checks whether ident has been saved
+#'
+#'
+#' @param object gcdSeurat
+#' @return whether idents must be saved
+#' 
+#' @method IdentsSaved gcdSeurat
+#' @export
+#' 
+ClosestIdent <- function(object, ...) {
+  # active.ident <- object@meta.list$active.ident
+  closest.ident <- NULL
+  closest.diff <- Inf
+  ident.levels <- levels(Idents(object@seurat))
+  for (choice in CellGroups(object)) {
+    choice.levels <- levels(object@seurat@meta.data[[choice]])
+    if (length(ident.levels) != length(choice.levels)) {
+      next
+    }
+    sym.diff <- union(setdiff(ident.levels, choice.levels), setdiff(choice.levels, ident.levels))
+    if (length(sym.diff) < closest.diff) {
+      closest.diff <- length(sym.diff)
+      closest.ident <- choice
+    } else if (length(sym.diff) == closest.diff) {
+      closest.ident <- c(closest.ident, choice)
+    }
+  }
+  message(closest.ident, " ", closest.diff)
+  return(closest.ident) 
+}
 
 #' Finds and sets current active ident.
 #'
@@ -279,7 +329,7 @@ IdentsSaved.gcdSeurat <- function(object, ...) {
 #' 
 #' @export
 #' 
-findActiveIdent <- function(RET) {
+setActiveIdent <- function(RET) {
   
   active.ident <- NULL
   for (choice in CellGroups(RET)) {
@@ -298,3 +348,26 @@ findActiveIdent <- function(RET) {
   }
   return(RET)
 }
+#' Finds and sets current active ident.
+#'
+#'
+#' @param RET gcdSeurat object
+#' @return RET with meta.list modified to inclue active.ident
+#' 
+#' @export
+#' 
+tryOverwriteIdent <- function(RET, OVERWRITE.IDENT) {
+  if (is.null(ClosestIdent(RET))) {
+    return(RET)
+  }
+  RET@seurat[[OVERWRITE.IDENT]] <- Idents(RET@seurat)
+  for (marker.type in names(RET@markers)) {
+    if (ActiveIdent(RET) %in% names(RET@markers[[marker.type]])) {
+      RET@markers[[marker.type]][[OVERWRITE.IDENT]] <- RET@markers[[marker.type]][[ActiveIdent(RET)]]
+          # print(names(DATA$orig.RET@markers[[marker.type]][[input$OVERWRITE.IDENT]]))
+      names(RET@markers[[marker.type]][[OVERWRITE.IDENT]]) <- levels(Idents(RET@seurat))
+      }
+  }
+  return(RET)
+}
+

@@ -256,8 +256,6 @@ Melt <- function(x) {
 Palettes <- function(RET, type.use = 1) {
   library(scales)
   library(colorspace)
-  print(type.use)
-  print(class(type.use))
   if (type.use == 1) {
     return(hue_pal()(length(levels(RET@seurat))))
   } else if (type.use == 2) {

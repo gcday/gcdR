@@ -23,13 +23,14 @@ sidebar <- dashboardSidebar(
   fileInput('IMAGE','Choose RDS File',
             multiple=FALSE,
             accept=c('.RDS')),
-  downloadButton("DOWNLOAD.DATA", "Save RDS file"),
+  div(style = "margin-left: 10px; margin-bot: 5px;",
+  downloadButton("DOWNLOAD.DATA", "Save RDS file")),
   sidebarMenu(id = "sidebarTabs",
     menuItem("Overview", tabName = "overview", icon = icon("dashboard")),
     conditionalPanel("input.sidebarTabs == 'overview'",
-                      div(style = "margin-left: 10px;",
+                      div(style = "margin-left: 10px; margin-top: 5px;",
                        checkboxInput("LABELS", "Include Labels", FALSE),
-                       actionButton("RECLUSTER", "Re-cluster"),
+                       actionButton("RECLUSTER", "Re-cluster", icon = icon("calculator")),
                        selectizeInput('SPLIT.BY', 'Optional split value', 
                                       choices = NULL, selected = NULL)
                      )),
@@ -42,7 +43,7 @@ sidebar <- dashboardSidebar(
     menuItem("DE genes", icon = icon("chart-bar"), tabName = "DEPanel"),
     conditionalPanel("input.sidebarTabs == 'DEPanel'",
                      div(style = "margin-left: 10px;",
-                         actionButton("DO.MARKERS", "Find DE markers")
+                         actionButton("DO.MARKERS", "Find DE markers", icon = icon("calculator"))
                      )),
     menuItem("Marker sets", icon = icon("th"), tabName = "markerPanel"),
     conditionalPanel("input.sidebarTabs == 'markerPanel'",
@@ -51,7 +52,7 @@ sidebar <- dashboardSidebar(
                                    multiple=FALSE,
                                    accept=c('.yaml')),
                          radioButtons("MARKERS.TYPE", "Plot type", 
-                                      choices = c(Feature = "feature", Violin = "violin"),
+                                      choices = c(Violin = "violin", Feature = "feature"),
                                       selected = "violin")
                      ))
   ),
@@ -62,9 +63,9 @@ sidebar <- dashboardSidebar(
   selectizeInput('FILTER','Filter by', choices = c(None=""), selected = NULL),
   uiOutput("NAMES"),
   
-  actionButton("CHANGE.GRP.NAME", "Rename group label(s)"),
-  actionButton("RENAME.IDENT", "Save group labels"),
-  radioButtons("COLOR.PALETTE", "Palette",  
+  actionButton("CHANGE.GRP.NAME", "Rename group label"),
+  actionButton("RENAME.IDENT", "Save current groups"),
+  radioButtons("COLOR.PALETTE", "Color palette",  
                                        choices = c(`1` = 1, `2` = 2, `3` = 3, `4` = 4), selected = 1)
   
 )
@@ -120,7 +121,6 @@ body <- dashboardBody(
               box(title = "DE genes",
                   width = 12,
                   height = "auto",
-                  # div(style =  overflow-y: scroll',
                   uiOutput("DE.MARKERS")
               )
           )

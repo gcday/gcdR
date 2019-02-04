@@ -14,7 +14,6 @@ server <- function( input, output, session){
     if (DATA$mouse) {
       cc.genes.species <- mouse.cc.genes
     }
-    
     if (!"Phase" %in% colnames( RET@seurat@meta.data )) {
       incProgress(amount = 0.2, message = "Adding cell cycle scores...")
       RET <- gcdCellCycleScoring(RET, cc.genes.species$s.genes, 
@@ -22,7 +21,7 @@ server <- function( input, output, session){
     }
     return(RET)
   }
-  updateGroupOptions <- function(first = F) {
+  updateGroupOptions <- function() {
     choices <- CellGroups(DATA$orig.RET)
     updateSelectizeInput(session, 'CLUSTER', 'Cluster by',
                          choices = choices,
@@ -32,47 +31,41 @@ server <- function( input, output, session){
                          selected = input$FILTER, server = T)
     split.choices <- choices[choices != ActiveIdent(DATA$orig.RET)]
     
-    if (first) {}
     updateSelectizeInput(session, 'SPLIT.BY', 'Optional split value',
                          choices = c(None="", split.choices),
-                         selected = ifelse(first, split.choices[1], input$SPLIT.BY))
+                         selected = ifelse(isTruthy(input$SPLIT.BY), input$SPLIT.BY, split.choices[1]))
   }
   
   openInitialRDS <- function() {
-    RET <- readSeuratRDStoGCD(input$IMAGE$datapath)
-    RET <- updateSeuratAndRunUMAP(RET)
+    RET <- readSeuratRDStoGCD(input$IMAGE$datapath, shiny = T)
+    RET <- gcdRunUMAP(RET)
     DATA$mouse <- "Sdc1" %in% rownames(RET@seurat)
     
     RET <- addCellCycleScoring(RET)
-    # RET <- setActiveIdent(RET) {
-    
-    # }
-    if (!IdentsSaved(RET)) {
-      oldActiveIdent <- ActiveIdent(RET)
-      RET@seurat[["old.ident"]] <- Idents(RET@seurat)
-    }
-    
-      # for (marker.names in names(RET@markers)) {
-        # message("renaming ", marker.names)
-        # if (active.ident %in% names(RET@markers[[marker.names]])) {
-      # RET@markers
-    # }
-    RET <- setActiveIdent(RET)
 
-    numeric.meta.data <- colnames(RET@seurat@meta.data)[sapply(RET@seurat@meta.data, function(x) is.numeric(x))]
-    
-    DATA$GENES.OPT <- c(numeric.meta.data, sort(rownames(RET@seurat)))
-
-    updateSelectizeInput(session, 'GENE','Gene', 
-                         choices = list("Metadata" = numeric.meta.data,
-                                        "Genes" = sort(rownames(RET@seurat))),
-                                        selected = numeric.meta.data[1], server = T)
     DATA$orig.RET <- RET
     DATA$RET <- RET
     DATA$ACTIVE.FILTER <- F
-    updateGroupOptions(first = T)
-
-    message(ActiveIdent(RET))
+    
+    numeric.meta.data <- colnames(DATA$orig.RET@seurat@meta.data)[sapply(DATA$orig.RET@seurat@meta.data, function(x) is.numeric(x))]
+    
+    print(numeric.meta.data)
+    updateSelectizeInput(session, 'GENE','Gene', 
+                         choices = list("Metadata" = numeric.meta.data,
+                                        "Genes" = sort(rownames(DATA$orig.RET@seurat))),
+                         selected = numeric.meta.data[1], server = T)
+    if (!IdentsSaved(DATA$orig.RET)) {
+      if (!is.null(ClosestIdent(DATA$orig.RET))) {
+        DATA$orig.RET <- tryOverwriteIdent(DATA$orig.RET, ClosestIdent(DATA$orig.RET))
+        updateGroupOptions()
+      } else {
+        showModal(newNameModal())
+      }
+    } else {
+      DATA$orig.RET <- setActiveIdent(DATA$orig.RET)
+      updateGroupOptions()
+    }
+    message(ActiveIdent(DATA$orig.RET))
   }
   
   observeEvent(input$IMAGE$datapath, {
@@ -81,12 +74,21 @@ server <- function( input, output, session){
       })
   })
 
-  newNameModal <- function(failed = FALSE) {
+  newNameModal <- function(failed = FALSE, warn = FALSE) {
+    req(DATA$orig.RET)
+    print(ClosestIdent(DATA$orig.RET))
+    print(CellGroups(DATA$orig.RET))
     modalDialog(
-      textInput("NEW.IDENTS", "Enter new name for current group assignments.",
+      
+      selectInput("OVERWRITE.IDENT", "Select an ident column to overwrite with current group assignments. ", 
+                  choices = c(None = '', CellGroups(DATA$orig.RET), selected = ClosestIdent(DATA$orig.RET)),
+                   multiple = F),
+      textInput("NEW.IDENTS", "Or, enter new name for current group assignments.",
                 placeholder = paste0('new_', input$CLUSTER)),
       if (failed)
         div(tags$b("Group name already exists!", style = "color: red;")),
+      if (warn)
+        div(tags$b("Current idents have been modified! Please save before continuing or they will be lost.", style = "color: orange;")),
       footer = tagList(
         modalButton("Cancel"),
         actionButton("OK.SAVE.GROUPS", "OK")
@@ -94,12 +96,19 @@ server <- function( input, output, session){
     )
   }
   observeEvent(input$OK.SAVE.GROUPS, {
-    req(input$NEW.IDENTS)
-    if (input$NEW.IDENTS != "" & !input$NEW.IDENTS %in% colnames(DATA$orig.RET@seurat@meta.data)) {
+    req(isTruthy(input$NEW.IDENTS) | isTruthy(input$OVERWRITE.IDENT))
+    
+    if (input$OVERWRITE.IDENT != "") {
+      DATA$orig.RET <- tryOverwriteIdent(DATA$orig.RET, input$OVERWRITE.IDENT)
+      DATA$RET <- DATA$orig.RET
+      updateGroupOptions()
+      removeModal()
+    } else if (input$NEW.IDENTS != "" & !input$NEW.IDENTS %in% colnames(DATA$orig.RET@seurat@meta.data)) {
       DATA$orig.RET@seurat[[input$NEW.IDENTS]] <- Idents(DATA$orig.RET@seurat)
       for (marker.type in names(DATA$orig.RET@markers)) {
-        DATA$orig.RET@markers[[marker.type]][[input$NEW.IDENTS]] <- DATA$orig.RET@markers[[marker.type]][[input$CLUSTER]]
+        DATA$orig.RET@markers[[marker.type]][[input$NEW.IDENTS]] <- DATA$orig.RET@markers[[marker.type]][[ActiveIdent(DATA$orig.RET)]]
       }
+      DATA$RET <- DATA$orig.RET
       updateGroupOptions()
       removeModal()
     } else {
@@ -114,10 +123,10 @@ server <- function( input, output, session){
   
   newGroupNameModal <- function(failed = FALSE) {
     modalDialog(
-      selectInput("GRPS.TO.RENAME", label = "Group(s) to rename",
-                  choices = levels(DATA$orig.RET@seurat), selectize = T, multiple = T
+      selectInput("GRPS.TO.RENAME", label = "Group to rename",
+                  choices = levels(DATA$orig.RET@seurat), selectize = T, multiple = F
       ),
-      textInput("NEW.GRPS.NAME", label = "New label for selected group(s)"),
+      textInput("NEW.GRPS.NAME", label = "New label for selected group"),
       if (failed)
         div(tags$b("Error reassigning ident name.", style = "color: red;")),
       footer = tagList(
@@ -158,26 +167,14 @@ server <- function( input, output, session){
   }
   
   observeEvent(input$OK.RECLUSTER, {
-    # req(input$RECLUSTER.RES)
     if (input$RECLUSTER.RES) {
+      
       withProgress(message = 'Clustering', value = 0, {
         DATA$orig.RET <- seuratClusterWrapper(DATA$orig.RET, resolution = input$RECLUSTER.RES, dims = DATA$orig.RET@meta.list$dims)
       })
-      choices <- CellGroups(DATA$orig.RET)
-      #   print(choices)
-      #   print(input$CLUSTER)
-      message("Active ident ", ActiveIdent(DATA$orig.RET))
-      updateSelectizeInput(session, 'CLUSTER', 'Cluster by',
-                             choices = choices,
-                             selected = ActiveIdent(DATA$orig.RET), server = T)
-      updateSelectizeInput(session, 'FILTER', 'Filter by',
-                             choices = c(None="", choices),
-                             selected = input$FILTER, server = T)
-
-      updateSelectizeInput(session, 'SPLIT.BY', 'Optional split value',
-                           choices = c(None="", choices[choices != input$CLUSTER]),
-                           selected = input$SPLIT.BY)
-    
+      
+      DATA$orig.RET <- setActiveIdent(DATA$orig.RET)
+      updateGroupOptions()
       DATA$RET <- DATA$orig.RET
       removeModal()
     } else {
@@ -186,14 +183,35 @@ server <- function( input, output, session){
   })
   
   observeEvent(input$RECLUSTER, {
-    showModal(reclusterModal())
+    if (!IdentsSaved(DATA$orig.RET)) {
+      if (!is.null(ClosestIdent(DATA$orig.RET))) {
+        DATA$orig.RET <- tryOverwriteIdent(DATA$orig.RET, ClosestIdent(DATA$orig.RET))
+      } else {
+        showModal(newNameModal(warn = T))
+      }
+    } else {
+      showModal(reclusterModal())
+    }
+
   })
   observeEvent(input$DO.MARKERS, {
+    if (!IdentsSaved(DATA$orig.RET)) {
+      if (!is.null(ClosestIdent(DATA$orig.RET))) {
+        DATA$orig.RET <- tryOverwriteIdent(DATA$orig.RET, ClosestIdent(DATA$orig.RET))
+        updateGroupOptions()
+      } else {
+        showModal(newNameModal(warn = T))
+      }
+    }
     showModal({
       modalDialog(
-      "Select groups for calculating DE genes (if none, all will be used--which may be very slow! (>30 min)).",
-      selectInput("IDENTS.TO.USE", label = "groups",
-                  choices = levels(DATA$orig.RET@seurat), selectize = T, multiple = T),
+      "Select groups for calculating DE genes (if none selected, all will be used--which may be very slow! (>30 min)).",
+      tipify(selectInput("IDENTS.TO.USE", label = "Groups for DE gene calculation",
+                  choices = levels(DATA$orig.RET@seurat), selectize = T, multiple = T),  "Compares cells in each group to cells in ALL other groups, regardless of what you choose here!"),
+      popify(sliderInput("DE.LOGFC", "Log-FC threshold",
+                         min = 0, max = 2,
+                         value = 0.5, step = 0.05), 
+      "Limits testing to genes whose avg. expression in in-group cells differs from avg. expression in outgroup cells by at least this value, speeding up the testing (but potentially missing important signals!). 0.5 works well for finding markers between very distinct populations (e.g. B vs. T cells), but lower values are needed when comparing expression in e.g. tumor subsets."),
       footer = tagList(
         modalButton("Cancel"),
         actionButton("DO.MARKERS.OK", "Ok"))
@@ -202,14 +220,9 @@ server <- function( input, output, session){
     })
   observeEvent(input$DO.MARKERS.OK, {
     req(DATA$orig.RET, DATA$orig.RET@markers)
-    if (!IdentsSaved(DATA$orig.RET)) {
-      must.update <- T
-      DATA$orig.RET@seurat[[paste0("new_", ActiveIdent(DATA$orig.RET))]] <- Idents(object = DATA$orig.RET@seurat)
-      updateGroupOptions()
-    } 
-    
     withProgress(message = 'DE markers', value = 0, {
-      DATA$orig.RET <- seuratAllMarkers(DATA$orig.RET, shiny = T, fast.threshold = 0.5, idents.use = input$IDENTS.TO.USE)
+      DATA$orig.RET <- seuratAllMarkers(DATA$orig.RET, shiny = T, 
+                                        fast.threshold = input$DE.LOGFC, idents.use = input$IDENTS.TO.USE)
     })
     DATA$RET <- DATA$orig.RET 
     removeModal()
@@ -218,13 +231,6 @@ server <- function( input, output, session){
   output$DOWNLOAD.DATA <- downloadHandler(filename = function() {return(input$IMAGE$name)},
     content = function(file) {saveRDS(DATA$orig.RET, file)})
   
-  output$SPLIT.VAR <- renderUI({
-    if (is.null( input$IMAGE ) | is.null(input$CLUSTER) ) return(NULL)
-    message("updating SPLIT.BY")
-    choices <- DATA$CHOICES[DATA$CHOICES != input$CLUSTER]
-    selected.split <- ifelse(length(choices) >= 1, choices[1], NULL)
-    selectInput('SPLIT.BY', 'Optional split value', choices = c(None="", choices), selected = selected.split, selectize = T)
-  })
 
   output$NAMES <- renderUI({
     req(input$FILTER)
@@ -243,9 +249,14 @@ server <- function( input, output, session){
     must.update <- F
     # means current group label assignments must be saved
     if (!IdentsSaved(DATA$orig.RET)) {
-      must.update <- T
-      DATA$orig.RET@seurat[[paste0("new_", ActiveIdent(DATA$orig.RET))]] <- Idents(object = DATA$orig.RET@seurat)
-    } 
+      if (!is.null(ClosestIdent(DATA$orig.RET))) {
+        DATA$orig.RET <- tryOverwriteIdent(DATA$orig.RET, ClosestIdent(DATA$orig.RET))
+      } else {
+        must.update <- T
+        DATA$orig.RET@seurat[[paste0("new_", ClosestIdent(DATA$orig.RET))]] <- Idents(object = DATA$orig.RET@seurat)
+      }
+    }
+    
     if (input$CLUSTER != ActiveIdent(DATA$orig.RET)) {
       if(class(DATA$orig.RET@seurat[[input$CLUSTER]][[input$CLUSTER]]) == "character") {
         # Getting the sort order correct (e.g. 0, 1, 2,...) for numeric idents stored as chars, hopefully
@@ -256,7 +267,6 @@ server <- function( input, output, session){
       } else {
         Idents(DATA$orig.RET@seurat) <- type.convert(DATA$orig.RET@seurat@meta.data[[input$CLUSTER]], as.is = T)
       }
-      # Palettes(DATA$orig.RET, as.integer(input$COLOR.PALETTE)) <- rainbow_hcl(length(levels(Idents(DATA$orig.RET@seurat))), c = 100, l = 80) 
       message("Updating Seurat idents... ", input$CLUSTER)
       
       DATA$orig.RET@seurat <- BuildClusterTree(DATA$orig.RET@seurat, dims = DATA$orig.RET@meta.list$dims)
@@ -358,7 +368,6 @@ server <- function( input, output, session){
       DATA$orig.RET@seurat <- BuildClusterTree(DATA$orig.RET@seurat, dims = DATA$orig.RET@meta.list$dims)
     }
     data.tree <- Tool(object = DATA$orig.RET@seurat, slot = "BuildClusterTree")
-    # PlotClusterTree(DATA$orig.RET@seurat)
     ape::plot.phylo(x = data.tree, direction = "rightwards")
     ape::nodelabels()
   })
@@ -428,9 +437,6 @@ server <- function( input, output, session){
   }
   output$DE.PANEL <- renderUI({
     fluidPage(
-      # div(class = "col-sm-6 col-md-4 col-lg-3",
-      #     box(width = "100%",
-      #         actionButton("DO.MARKERS", "Find DE markers"))),
       fluidRow(box(width = "100%",
           height = "auto",
           uiOutput("DE.MARKERS"))
@@ -470,7 +476,7 @@ server <- function( input, output, session){
                                    cells = WhichCells(DATA$orig.RET@seurat, downsample = 250),
                                    cols = Palettes(DATA$orig.RET, as.integer(input$COLOR.PALETTE)),
                                    features = markers, slot = "data")
-                       }, height = 550, width = "auto")
+                       }, height = 650, width = "auto")
                        )
             }))
     )
@@ -538,9 +544,6 @@ server <- function( input, output, session){
       #       )
     
   })
-
-
-
 
   output$MARKER.DOTPLOTS <- renderUI({
     req(DATA$RET, DATA$markers.list)

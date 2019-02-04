@@ -68,18 +68,18 @@ gseaPerCluster <- function(ranks, pathways) {
 #' fgseaWrapper(RET, pathways.list)
 #'
 #' @export
-fgseaWrapper <- function(RET, pathways.list, prefixes = NULL, mouse = FALSE) {
+fgseaWrapper <- function(RET, pathways.list, prefixes = NULL) {
   # RET$fgsea <- list(pathways = list(), results = list(), prefixes=list(), ranks=list(), plots=list())
   # RET$plots$fgsea <- list()
-  markers.name <- "all.markers.quick"
-  if ("all.markers.full" %in% names(RET@markers)) {
-  	markers.name <- "all.markers.full"
-  }
-  if (!markers.name %in% names(RET@markers)) {
-  	warning("Missing marker genes")
-  }
-  markers <- RET@meta.list[[markers.name]]
-  RET@meta.list$fgsea <- fgseaFromMarkers(markers, pathways.list, prefixes)
+  markers.name <- "quick"
+  # if ("full" %in% names(RET@markers)) {
+  # 	markers.name <- "full"
+  # }
+  # if (!markers.name %in% names(RET@markers)) {
+  # 	warning("Missing marker genes")
+  # }
+  markers <- RET@markers[[markers.name]][[ActiveIdent(RET)]]
+  RET@fgsea[[ActiveIdent(RET)]] <- fgseaFromMarkers(markers, pathways.list, prefixes)
   return(RET)
 }
 #' Wrapper running fgsea
@@ -97,8 +97,9 @@ fgseaWrapper <- function(RET, pathways.list, prefixes = NULL, mouse = FALSE) {
 #' @export
 fgseaFromMarkers <- function(markers, pathways.list, prefixes = NULL) {
   fgsea <- list(pathways = list(), results = list(), prefixes=list(), ranks=list(), plots=list())
-  for (ident in levels(as.factor(markers$cluster))) { 
-    fgsea$ranks[[ident]] <- seuratDEresToGSEARanks(filter(markers, cluster == ident))
+  # for (ident in levels(as.factor(markers$cluster))) { 
+  for (ident in names(markers)) {
+    fgsea$ranks[[ident]] <- seuratDEresToGSEARanks(markers[[ident]])
   }
 
   for (i in 1:length(pathways.list)) {
@@ -254,20 +255,22 @@ GCD.plotGseaTable <- function (pathways, stats, fgseaRes, gseaParam = 1, term.pr
 printGseaPlots <- function(RET, redraw = F, path.dbs.to.check = NULL, ...) {
   require("grid")
   require("gridExtra")
+  fgseaRes <- RET@fgsea[[ActiveIdent(RET)]]
   if (is.null(path.dbs.to.check)) {
-    path.dbs.to.check <- names(RET@meta.list$fgsea$plots)
+    path.dbs.to.check <- names(fgseaRes$plots)
   }
+
   for (pathway in path.dbs.to.check) {
-    if (redraw) {
-      RET@plots$fgsea[[pathway]] <- gseaTopPlots(fgseaRes = RET@meta.list$fgsea$results[[pathway]],
-                                                 pathways = RET@meta.list$fgsea$pathways[[pathway]],
-                                                 path.name = pathway,
-                                                 term.prefix = RET@meta.list$fgsea$prefixes[[pathway]], ...)
-    }
-    for (ident in names(RET@meta.list$fgsea$plots[[pathway]])) {
+    # if (redraw) {
+    #   fgseaRes$plots <-  <- gseaTopPlots(fgseaRes = fgseaRes$results[[pathway]],
+    #                                              pathways = fgseaRes$pathways[[pathway]],
+    #                                              path.name = pathway,
+    #                                              term.prefix = fgseaRes$prefixes[[pathway]], ...)
+    # }
+    for (ident in names(fgseaRes$plots[[pathway]])) {
       grid.arrange(top=textGrob(ident, gp = gpar(fontvsize=20, fontface="bold")),
-                   RET@meta.list$fgsea$plots[[pathway]][[ident]]$up,
-                   RET@meta.list$fgsea$plots[[pathway]][[ident]]$down)
+                   fgseaRes$plots[[pathway]][[ident]]$up,
+                   fgseaRes$plots[[pathway]][[ident]]$down)
     }
   }
 }

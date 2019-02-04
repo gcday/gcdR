@@ -8,6 +8,8 @@ Imports:
 	dplyr,
 	Seurat (>= 3.0),
 	shiny,
+	shinydashboard,
+	future,
 	DT,
 	ggplot2,
 	purrr,
@@ -15,7 +17,8 @@ Imports:
 	knitr,
 	kableExtra,
 	scales,
-	ape
+	ape,
+	yaml
 Suggests:
 	fgsea
 

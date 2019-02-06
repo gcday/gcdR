@@ -3,6 +3,7 @@ Useful wrappers and data structures for simple and reproducible processing of Se
 
 
 ## Installation
+Important: restart R before running these commands! (under the Session tab in RStudio)
 ```{r}
 if (!require("devtools")) install.packages("devtools")
 devtools::install_github("satijalab/seurat", ref = "release/3.0", force = T)
@@ -12,8 +13,9 @@ Note -- to calculate UMAP reduction in addition to t-SNE, you'll need to install
 ```
 pip install umap-learn
 ```
-Note -- this requires Python to be installed. If this command fails, try installing the latest Python [here](https://www.python.org/downloads/release/python-372/)
+The above command relies on Python being installed. If this command fails, one reason may be that Python isn't installed. (You can check by running ```python``` on the command line). Try installing the latest Python [here](https://www.python.org/downloads/release/python-372/)
 
+The Shiny app will work just fine without the ```umap-learn``` package, but you'll be limited to t-SNE. 
 
 ## Quick run
 ```{r}

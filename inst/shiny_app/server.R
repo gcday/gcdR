@@ -44,16 +44,20 @@ server <- function( input, output, session){
     RET <- addCellCycleScoring(RET)
 
     DATA$orig.RET <- RET
+    
     DATA$RET <- RET
     DATA$ACTIVE.FILTER <- F
     
     numeric.meta.data <- colnames(DATA$orig.RET@seurat@meta.data)[sapply(DATA$orig.RET@seurat@meta.data, function(x) is.numeric(x))]
     
-    print(numeric.meta.data)
     updateSelectizeInput(session, 'GENE','Gene', 
                          choices = list("Metadata" = numeric.meta.data,
                                         "Genes" = sort(rownames(DATA$orig.RET@seurat))),
                          selected = numeric.meta.data[1], server = T)
+    
+    
+    
+    
     if (!IdentsSaved(DATA$orig.RET)) {
       if (!is.null(ClosestIdent(DATA$orig.RET))) {
         DATA$orig.RET <- tryOverwriteIdent(DATA$orig.RET, ClosestIdent(DATA$orig.RET))
@@ -154,9 +158,9 @@ server <- function( input, output, session){
   
   reclusterModal <- function(failed = FALSE) {
     modalDialog(
-      sliderInput("RECLUSTER.RES", "Resolution",
+      tipify(sliderInput("RECLUSTER.RES", "Resolution",
                   min = 0.1, max = 3,
-                  value = 0.8, step = 0.05),
+                  value = 0.8, step = 0.05), "Higher resolution values result in more clusters"),
       if (failed)
         div(tags$b("Error reassigning ident name.", style = "color: red;")),
       footer = tagList(
@@ -192,7 +196,6 @@ server <- function( input, output, session){
     } else {
       showModal(reclusterModal())
     }
-
   })
   observeEvent(input$DO.MARKERS, {
     if (!IdentsSaved(DATA$orig.RET)) {
@@ -239,9 +242,9 @@ server <- function( input, output, session){
   })
   
   output$DIM.REDUC.CHOICE <- renderUI({
-    req(DATA$reductions)
+    req(DATA$orig.RET)
     radioButtons("DIM.REDUC", "Reduction",
-                 choices = DATA$reductions, selected = DATA$reductions[1])
+                 choices = DATA$orig.RET@meta.list$reductions, selected = DATA$orig.RET@meta.list$reductions[1])
   })
 
   observeEvent(input$CLUSTER, ignoreInit = T, {
@@ -318,6 +321,27 @@ server <- function( input, output, session){
                        reduction = input$DIM.REDUC)
     return(dim.plt)
   })
+  output$DIM.REDUC.SPLIT <- renderPlot({
+    req(DATA$RET, input$SPLIT.BY)
+    SPLIT.RET <- DATA$RET
+    if(class(SPLIT.RET@seurat[[input$SPLIT.BY]][[input$SPLIT.BY]]) == "character") {
+      # Getting the sort order correct (e.g. 0, 1, 2,...) for numeric idents stored as chars, hopefully
+      Idents(SPLIT.RET@seurat) <- as.factor(type.convert(SPLIT.RET@seurat@meta.data[[input$SPLIT.BY]]))
+      message(levels(as.factor(type.convert(SPLIT.RET@seurat@meta.data[[input$SPLIT.BY]]))))
+    } else if (class(SPLIT.RET@seurat[[input$SPLIT.BY]][[input$SPLIT.BY]]) == "factor") {
+      Idents(SPLIT.RET@seurat) <- input$SPLIT.BY
+    } else {
+      Idents(SPLIT.RET@seurat) <- type.convert(SPLIT.RET@seurat@meta.data[[input$SPLIT.BY]], as.is = T)
+    }
+
+
+    
+    dim.plt <- DimPlot(SPLIT.RET@seurat,
+                       group.by = input$SPLIT.BY,
+                       reduction = input$DIM.REDUC)
+    return(dim.plt)
+  })
+  
 
   doPlotsSingleGene <- function(gene, vln.width = "auto", vln.height = 400,
                                 feat.width = "auto", feat.height = 500,

@@ -9,6 +9,7 @@ Imports:
 	Seurat (>= 3.0),
 	shiny,
 	shinydashboard,
+	shinyBS,
 	future,
 	DT,
 	ggplot2,

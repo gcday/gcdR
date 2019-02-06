@@ -1,9 +1,6 @@
-# command + A  to highlight all
-# command + enter to run code
-# will bring up external window with Shiny App
-
 library( shiny )
 library(shinydashboard)
+library(shinyBS)
 
 library( Seurat )
 library(scales)
@@ -20,6 +17,8 @@ plan(multicore, workers = parallel::detectCores() - 1)
 
 
 sidebar <- dashboardSidebar(
+  tags$style(".skin-blue .sidebar a { color: #444; }"),
+  
   fileInput('IMAGE','Choose RDS File',
             multiple=FALSE,
             accept=c('.RDS')),
@@ -31,14 +30,17 @@ sidebar <- dashboardSidebar(
                       div(style = "margin-left: 10px; margin-top: 5px;",
                        checkboxInput("LABELS", "Include Labels", FALSE),
                        actionButton("RECLUSTER", "Re-cluster", icon = icon("calculator")),
-                       selectizeInput('SPLIT.BY', 'Optional split value', 
-                                      choices = NULL, selected = NULL)
+                       tipify(
+                         selectizeInput('SPLIT.BY', 'Secondary split value', 
+                                      choices = NULL, selected = NULL),
+                          "Used for group breakdown table")
                      )),
     menuItem("Gene expression", icon = icon("dna"), tabName = "genePanel"),
     conditionalPanel("input.sidebarTabs == 'genePanel'",
                      div(style = "margin-left: 10px;",
-                         selectizeInput("GENE", "Gene", choices = NULL,
-                                        selected=NULL, multiple=T)
+                         tipify(selectizeInput("GENE", "Gene", choices = NULL,
+                                        selected=NULL, multiple=T), 
+                                "Enter one or more genes", placement = "bottom")
                      )),
     menuItem("DE genes", icon = icon("chart-bar"), tabName = "DEPanel"),
     conditionalPanel("input.sidebarTabs == 'DEPanel'",
@@ -58,7 +60,10 @@ sidebar <- dashboardSidebar(
   ),
   uiOutput("DIM.REDUC.CHOICE"),
   
-  selectizeInput('CLUSTER', 'Group cells by', choices = NULL, selected = NULL),
+  tipify(
+    selectizeInput('CLUSTER', 'Group cells by', choices = NULL, selected = NULL),
+    "Reccomended: group cells by clusters here, then use \"Secondary split value\" under Overview to analyze breakdown by sample, cell cycle phase, etc. "
+  )  ,
   
   selectizeInput('FILTER','Filter by', choices = c(None=""), selected = NULL),
   uiOutput("NAMES"),
@@ -78,6 +83,16 @@ body <- dashboardBody(
                       width='100%',
                       height = "auto",
                       plotOutput("DIM.REDUC",
+                                 width='100%', height='600px')
+                  )
+              )
+            ),
+            fluidRow(
+              div(class = "col-sm-12 col-md-10 col-lg-8",
+                  box(title = "Dim Plot Split",
+                      width='100%',
+                      height = "auto",
+                      plotOutput("DIM.REDUC.SPLIT",
                                  width='100%', height='600px')
                   )
               )

@@ -1,4 +1,18 @@
+library( shiny )
+library(shinydashboard)
+library(shinyBS)
+
+library( Seurat )
+library(scales)
+library(knitr)
+library(kableExtra)
+library(future)
 library(gcdR)
+library(ggtree)
+library(yaml)
+library(dplyr)
+library(DT)
+library(colorspace)
 mydebug <- function(msg="[DEBUG]") {
   DEBUG <- FALSE
   if (DEBUG) {

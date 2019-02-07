@@ -21,6 +21,7 @@ The above command relies on Python being installed. If this command fails, one r
 The Shiny app will work just fine without the ```umap-learn``` package, but you'll be limited to t-SNE. 
 
 ## Quick run
+Once you've installed the package, just run the following commands to open the app. 
 ```{r}
 library(gcdR)
 runCellViewer()

@@ -3,8 +3,10 @@ Useful wrappers and data structures for simple and reproducible processing of Se
 
 
 ## Installation
-Important: restart R before running these commands! (under the Session tab in RStudio)
-I believe this requires R 3.5 or greater! If this process doesn't work, I reccomend downloading the latest version [here](http://cran.cnr.berkeley.edu/). 
+Important: restart R before running these commands! (under the Session tab in RStudio).
+
+I believe this requires R 3.5 or greater! 
+If this process doesn't work, I reccomend downloading the latest version [here](http://cran.cnr.berkeley.edu/). 
 ```{r}
 if (!require("devtools")) install.packages("devtools")
 devtools::install_github("satijalab/seurat", ref = "release/3.0", force = T)

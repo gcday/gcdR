@@ -19,7 +19,8 @@ Imports:
 	kableExtra,
 	scales,
 	ape,
-	yaml
+	yaml,
+	parallel
 Suggests:
 	fgsea
 

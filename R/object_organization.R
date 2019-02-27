@@ -371,3 +371,62 @@ tryOverwriteIdent <- function(RET, OVERWRITE.IDENT) {
   return(RET)
 }
 
+
+
+#' Finds best markers available for current idents.
+#'
+#' @param RET gcdSeurat object
+#' @return RET with meta.list modified to inclue active.ident
+#' 
+#' @importFrom dplyr %>%
+#' @method BestMarkers gcdSeurat
+#' @export
+#' 
+BestMarkers.gcdSeurat <- function(object, ...) {
+  max.markers <- 0
+  best.markers <- NULL
+  # Taking the set of markers with the most total genes observed 
+  for (choice in names(object@markers)) {
+    if (ActiveIdent(object) %in% names(object@markers[[choice]])) {
+      num.markers <- sum(unlist(lapply(object@markers[[choice]][[ActiveIdent(object)]], nrow)))
+      if (num.markers >= max.markers) best.markers <- choice
+    }
+  }
+  if (is.null(best.markers)) {
+    warning("Couldn't find active markers in metadata!")
+  }
+  return(object@markers[[best.markers]][[ActiveIdent(object)]])
+}
+
+#' @export
+#'
+BestMarkers <- function(object, ...) {
+  UseMethod(generic = 'BestMarkers', object = object)
+}
+
+
+#' Returns fgsea results for current idents. 
+#'
+#' @param RET gcdSeurat object
+#' @return RET with meta.list modified to inclue active.ident
+#' 
+#' @importFrom dplyr %>%
+#' @method GseaRes gcdSeurat
+#' @export
+#' 
+GseaRes.gcdSeurat  <- function(object, ...) {
+  max.markers <- 0
+  best.markers <- NULL
+  if (ActiveIdent(object) %in% names(object@fgsea)) {
+    return(object@fgsea[[ActiveIdent(object)]])
+  } else {
+    warning("Couldn't find fgsea in metadata!")
+    return(NULL)
+  }
+}
+
+#' @export
+#'
+GseaRes <- function(object, ...) {
+  UseMethod(generic = 'GseaRes', object = object)
+}

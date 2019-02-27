@@ -69,17 +69,7 @@ gseaPerCluster <- function(ranks, pathways) {
 #'
 #' @export
 fgseaWrapper <- function(RET, pathways.list, prefixes = NULL) {
-  # RET$fgsea <- list(pathways = list(), results = list(), prefixes=list(), ranks=list(), plots=list())
-  # RET$plots$fgsea <- list()
-  markers.name <- "quick"
-  # if ("full" %in% names(RET@markers)) {
-  # 	markers.name <- "full"
-  # }
-  # if (!markers.name %in% names(RET@markers)) {
-  # 	warning("Missing marker genes")
-  # }
-  markers <- RET@markers[[markers.name]][[ActiveIdent(RET)]]
-  RET@fgsea[[ActiveIdent(RET)]] <- fgseaFromMarkers(markers, pathways.list, prefixes)
+  RET@fgsea[[ActiveIdent(RET)]] <- fgseaFromMarkers(BestMarkers(RET), pathways.list, prefixes)
   return(RET)
 }
 #' Wrapper running fgsea
@@ -97,7 +87,6 @@ fgseaWrapper <- function(RET, pathways.list, prefixes = NULL) {
 #' @export
 fgseaFromMarkers <- function(markers, pathways.list, prefixes = NULL) {
   fgsea <- list(pathways = list(), results = list(), prefixes=list(), ranks=list(), plots=list())
-  # for (ident in levels(as.factor(markers$cluster))) { 
   for (ident in names(markers)) {
     fgsea$ranks[[ident]] <- seuratDEresToGSEARanks(markers[[ident]])
   }

@@ -1,8 +1,7 @@
-library( shiny )
+library(shiny)
 library(shinydashboard)
 library(shinyBS)
-
-library( Seurat )
+library(Seurat)
 library(scales)
 library(knitr)
 library(kableExtra)
@@ -13,6 +12,8 @@ library(yaml)
 library(dplyr)
 library(DT)
 library(colorspace)
+options(shiny.maxRequestSize = 12000*1024^2)
+
 plan(multicore, workers = parallel::detectCores() - 1)
 
 
@@ -23,17 +24,17 @@ sidebar <- dashboardSidebar(
             multiple=FALSE,
             accept=c('.RDS')),
   div(style = "margin-left: 10px; margin-bot: 5px;",
-  downloadButton("DOWNLOAD.DATA", "Save RDS file")),
+    downloadButton("DOWNLOAD.DATA", "Save RDS file")
+    ),
   sidebarMenu(id = "sidebarTabs",
     menuItem("Overview", tabName = "overview", icon = icon("dashboard")),
     conditionalPanel("input.sidebarTabs == 'overview'",
                       div(style = "margin-left: 10px; margin-top: 5px;",
                        checkboxInput("LABELS", "Include Labels", FALSE),
                        actionButton("RECLUSTER", "Re-cluster", icon = icon("calculator")),
-                       tipify(
-                         selectizeInput('SPLIT.BY', 'Secondary split value', 
+                       tipify(selectizeInput('SPLIT.BY', 'Secondary split value', 
                                       choices = NULL, selected = NULL),
-                          "Used for group breakdown table")
+                          "Used for group breakdown table; reccomended choices include \"Phase\" (cell cycle) and sample")
                      )),
     menuItem("Gene expression", icon = icon("dna"), tabName = "genePanel"),
     conditionalPanel("input.sidebarTabs == 'genePanel'",
@@ -58,21 +59,22 @@ sidebar <- dashboardSidebar(
                                       selected = "violin")
                      ))
   ),
-  uiOutput("DIM.REDUC.CHOICE"),
-  
-  tipify(
-    selectizeInput('CLUSTER', 'Group cells by', choices = NULL, selected = NULL),
-    "Reccomended: group cells by clusters here, then use \"Secondary split value\" under Overview to analyze breakdown by sample, cell cycle phase, etc. "
-  )  ,
-  
-  selectizeInput('FILTER','Filter by', choices = c(None=""), selected = NULL),
-  uiOutput("NAMES"),
-  
-  actionButton("CHANGE.GRP.NAME", "Rename group label"),
-  actionButton("RENAME.IDENT", "Save current groups"),
-  radioButtons("COLOR.PALETTE", "Color palette",  
-                                       choices = c(`1` = 1, `2` = 2, `3` = 3, `4` = 4), selected = 1)
-  
+      div(style = "margin-left: 10px;",
+          uiOutput("DIM.REDUC.CHOICE"),
+          tipify(
+            selectizeInput('CLUSTER', 'Group cells by', choices = NULL, selected = NULL),
+            "Reccomended: group cells by clusters here, then use \"Secondary split value\" under Overview to analyze breakdown by sample, cell cycle phase, etc."
+          ),
+          selectizeInput('FILTER','Filter by', choices = c(None=""), selected = NULL),
+          uiOutput("NAMES"),
+          
+          actionButton("CHANGE.GRP.NAME", "Rename group label"),
+          actionButton("RENAME.IDENT", "Save current groups"),
+          radioButtons("COLOR.PALETTE", "Color palette",  
+                       choices = c(`1` = 1, `2` = 2, `3` = 3, `4` = 4), selected = 1)
+      )
+
+
 )
 body <- dashboardBody(
   tabItems(
@@ -150,8 +152,6 @@ body <- dashboardBody(
     
 
 
-
-options(shiny.maxRequestSize = 1000*1024^2)
 
 ui <- dashboardPage(
   dashboardHeader(title = 'scRNA-Seq Gene and Cluster Viewer'),

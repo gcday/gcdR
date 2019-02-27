@@ -370,3 +370,5 @@ percent.table <- function(tbl) {
   props <- tbl/rowSums(tbl)
   return(t(round(props * 100, 1)))
 }
+
+

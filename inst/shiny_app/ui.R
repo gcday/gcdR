@@ -48,6 +48,7 @@ sidebar <- dashboardSidebar(
                      div(style = "margin-left: 10px;",
                          actionButton("DO.MARKERS", "Find DE markers", icon = icon("calculator"))
                      )),
+    menuItem("GSEA", icon = icon("chart-bar"), tabName = "GSEAPanel"),
     menuItem("Marker sets", icon = icon("th"), tabName = "markerPanel"),
     conditionalPanel("input.sidebarTabs == 'markerPanel'",
                      div(style = "margin-left: 10px;",
@@ -141,6 +142,15 @@ body <- dashboardBody(
                   uiOutput("DE.MARKERS")
               )
           )
+    ),
+    tabItem(tabName = "GSEAPanel",
+            fluidRow(
+              box(title = "GSEA",
+                  width = 12,
+                  height = "auto",
+                  uiOutput("FGSEA.PANEL")
+              )
+            )
     )
     )
 )

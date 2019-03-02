@@ -178,13 +178,19 @@ gcdRenameIdent <- function(RET, ident.to.rename, new.label) {
   for (marker.names in names(RET@markers)) {
     # message("renaming ", marker.names)
     if (active.ident %in% names(RET@markers[[marker.names]])) {
-      RET@markers[[marker.names]][[active.ident]]
+      # RET@markers[[marker.names]][[active.ident]]
       names(RET@markers[[marker.names]][[active.ident]])[names(RET@markers[[marker.names]][[active.ident]]) == ident.to.rename] <- new.label
     }
     # for (ident.name in names(RET@markers[[marker.names]])) {
       # levels(RET@markers[[marker.names]][[ident.name]]$cluster)[levels(RET@markers[[marker.names]][[ident.name]]$cluster) %in% c(idents.to.rename)] <- new.label
     # }
     # levels(RET@markers[[marker.names]]$cluster)[levels(RET@markers[[marker.names]]$cluster) %in% c(idents.to.rename)] <- new.label
+  }
+  if ("results" %in% names(RET@fgsea)) {
+    if (active.ident %in% names(RET@fgsea$results)) {
+      names(RET@fgsea$results[[active.ident]]$ranks)[names(RET@fgsea$results[[active.ident]]$ranks) == ident.to.rename] <- new.label
+      names(RET@fgsea$results[[active.ident]]$output)[names(RET@fgsea$results[[active.ident]]$output) == ident.to.rename] <- new.label
+    }
   }
   return(RET)
   # levels(DATA$orig.RET@seurat)[levels(DATA$orig.RET@seurat) %in% c(input$GRPS.TO.RENAME)] <- input$NEW.GRPS.NAME
@@ -248,13 +254,6 @@ ActiveIdent <- function(object, ...) {
 }
 
 
-#' Finds and sets current active ident.
-#'
-#'
-#' @param RET gcdSeurat object
-#' @return RET with meta.list modified to inclue active.ident
-#' 
-#' @method ActiveIdent gcdSeurat
 #' @export
 #' 
 IdentsSaved <- function(object, ...) {
@@ -364,7 +363,6 @@ tryOverwriteIdent <- function(RET, OVERWRITE.IDENT) {
   for (marker.type in names(RET@markers)) {
     if (ActiveIdent(RET) %in% names(RET@markers[[marker.type]])) {
       RET@markers[[marker.type]][[OVERWRITE.IDENT]] <- RET@markers[[marker.type]][[ActiveIdent(RET)]]
-          # print(names(DATA$orig.RET@markers[[marker.type]][[input$OVERWRITE.IDENT]]))
       names(RET@markers[[marker.type]][[OVERWRITE.IDENT]]) <- levels(Idents(RET@seurat))
       }
   }
@@ -417,12 +415,13 @@ BestMarkers <- function(object, ...) {
 GseaRes.gcdSeurat  <- function(object, ...) {
   max.markers <- 0
   best.markers <- NULL
-  if (ActiveIdent(object) %in% names(object@fgsea)) {
-    return(object@fgsea[[ActiveIdent(object)]])
-  } else {
-    warning("Couldn't find fgsea in metadata!")
-    return(NULL)
+  if ("results" %in% names(object@fgsea)) {
+    if (ActiveIdent(object) %in% names(object@fgsea$results)) {
+      return(object@fgsea$results[[ActiveIdent(object)]])
+    } 
   }
+  warning("Couldn't find fgsea in metadata!")
+  return(NULL)
 }
 
 #' @export

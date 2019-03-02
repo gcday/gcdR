@@ -262,7 +262,7 @@ seuratPCAWrapper <- function(RET, do.jackstraw = FALSE) {
 #' seuratClusterWrapper(RET)
 #'
 #' @export
-seuratClusterWrapper <- function(RET, dims = NULL, resolution = 0.50, do.TSNE = FALSE, do.UMAP = FALSE) {
+seuratClusterWrapper <- function(RET, dims = NULL, resolution = 0.50, do.TSNE = T, do.UMAP = T) {
   require(Seurat)
   if (is.null(dims)) {
     if (!is.null(RET@meta.list$dims)) {

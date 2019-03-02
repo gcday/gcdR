@@ -68,8 +68,47 @@ gseaPerCluster <- function(ranks, pathways) {
 #' fgseaWrapper(RET, pathways.list)
 #'
 #' @export
-fgseaWrapper <- function(RET, pathways.list, prefixes = NULL) {
-  RET@fgsea[[ActiveIdent(RET)]] <- fgseaFromMarkers(BestMarkers(RET), pathways.list, prefixes)
+fgseaWrapper <- function(RET, pathways.list, prefixes = NULL, idents.to.use = NULL) {
+  fgsea <- ifelse(length(RET@fgsea) > 0, RET@fgsea, 
+                  list(pathways = list(), 
+                       results = list(), 
+                       prefixes=list()))
+  markers <- BestMarkers(RET)
+  if (is.null(idents.to.use)) idents.to.use <- names(markers)
+  if (!ActiveIdent(RET) %in% names(fgsea$results)) {
+    fgsea$results[[ActiveIdent(RET)]] <- list(ranks = list(), output = list())
+  }
+  for (ident in idents.to.use) {
+    if (!ident %in% names(fgsea$results[[ActiveIdent(RET)]]$ranks)) {
+      fgsea$results[[ActiveIdent(RET)]]$ranks[[ident]] <- seuratDEresToGSEARanks(markers[[ident]])
+    }
+    if (!ident %in% names(fgsea$results[[ActiveIdent(RET)]]$output)) {
+      fgsea$results[[ActiveIdent(RET)]]$output[[ident]] <- list()
+    }
+  }
+  
+  
+  for (i in 1:length(pathways.list)) {
+    path.name <- names(pathways.list)[i]
+    pathways <- pathways.list[[path.name]]
+    fgsea$pathways[[path.name]] <- pathways
+    fgsea$prefixes[[path.name]] <- ifelse(is.null(prefixes), "", prefixes[i])
+    for (ident in idents.to.use) {
+      fgsea$results[[ActiveIdent(RET)]]$output[[ident]][[path.name]] <- fgsea::fgsea(pathways = pathways, 
+                                stats = fgsea$results[[ActiveIdent(RET)]]$ranks[[ident]],
+                                minSize=15,
+                                maxSize=500,
+                                nperm=20000, 
+                                nproc = parallel::detectCores())
+    }
+    # fgsea$plots[[path.name]] <- gseaTopPlots(fgseaRes = fgsea$results[[path.name]],
+    #                                              pathways = pathways, 
+    #                                              path.name = path.name, 
+    #                                              term.prefix = fgsea$prefixes[[path.name]])
+  }
+  
+  # RET@fgsea[[ActiveIdent(RET)]] <- fgseaFromMarkers(BestMarkers(RET), pathways.list, prefixes)
+  RET@fgsea <- fgsea
   return(RET)
 }
 #' Wrapper running fgsea
@@ -94,13 +133,13 @@ fgseaFromMarkers <- function(markers, pathways.list, prefixes = NULL) {
   for (i in 1:length(pathways.list)) {
     path.name <- names(pathways.list)[i]
     pathways <- pathways.list[[path.name]]
-    fgsea$results[[path.name]] <- gseaPerCluster(fgsea$ranks, c(pathways))
+    # fgsea$results[[path.name]] <- gseaPerCluster(fgsea$ranks, c(pathways))
     fgsea$pathways[[path.name]] <- pathways
     fgsea$prefixes[[path.name]] <- ifelse(is.null(prefixes), "", prefixes[i])
-    fgsea$plots[[path.name]] <- gseaTopPlots(fgseaRes = fgsea$results[[path.name]],
-                                                 pathways = pathways, 
-                                                 path.name = path.name, 
-                                                 term.prefix = fgsea$prefixes[[path.name]])
+    # fgsea$plots[[path.name]] <- gseaTopPlots(fgseaRes = fgsea$results[[path.name]],
+    #                                              pathways = pathways, 
+    #                                              path.name = path.name, 
+    #                                              term.prefix = fgsea$prefixes[[path.name]])
   }
   return(fgsea)
 }
@@ -290,7 +329,7 @@ printGseaPlotsFGSEA <- function(fgsea, redraw = F, path.dbs.to.check = NULL, ...
                                                  path.name = pathway,
                                                  term.prefix = fgsea$prefixes[[pathway]], ...)
     }
-    for (ident in names(fgsea$plots[[pathway]])) {
+    for (ident in names(fgsea$plots[[pathway]])) {  
       grid.arrange(top=textGrob(ident, gp = gpar(fontvsize=20, fontface="bold")),
                    fgsea$plots[[pathway]][[ident]]$up,
                    fgsea$plots[[pathway]][[ident]]$down)

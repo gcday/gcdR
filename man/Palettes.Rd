@@ -4,7 +4,7 @@
 \alias{Palettes}
 \title{Returns colors corresponding to each ident class.}
 \usage{
-Palettes(RET, type.use = 1)
+Palettes(RET, type.use = 1, var.use = NULL)
 }
 \description{
 Returns colors corresponding to each ident class.

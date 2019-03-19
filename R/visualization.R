@@ -253,21 +253,142 @@ Melt <- function(x) {
 
 #' Returns colors corresponding to each ident class.
 #' @export
-Palettes <- function(RET, type.use = 1) {
+Palettes <- function(RET, type.use = 1, var.use = NULL) {
   library(scales)
   library(colorspace)
-  if (type.use == 1) {
-    return(hue_pal()(length(levels(RET@seurat))))
-  } else if (type.use == 2) {
-    return(rainbow_hcl(length(levels(RET@seurat)), c = 90, l = 80))
-  } else if (type.use == 3) {
-    return(rainbow_hcl(length(levels(RET@seurat)), c = 100, l = 80))
+  if (is.null(var.use)) {
+    num.levels <- length(levels(RET@seurat))
   } else {
-    return(rainbow(length(levels(RET@seurat))))
+    num.levels <- length(levels(as.factor(RET@seurat[[var.use]][[var.use]])))
+  }
+  if (type.use == 1) {
+    return(hue_pal()(num.levels))
+  } else if (type.use == 2) {
+    return(rainbow_hcl(num.levels, c = 90, l = 80))
+  } else if (type.use == 3) {
+    return(rainbow_hcl(num.levels, c = 100, l = 80))
+  } else {
+    return(rainbow(num.levels))
   }
   # col.palettes <- c(hue_pal()(length(levels(RET@seurat))),
                       # rainbow_hcl(length(levels(RET@seurat)), c = 90, l = 80),
                       # rainbow_hcl(length(levels(RET@seurat)), c = 100, l = 80),
                       # rainbow(length(levels(RET@seurat))))
   # return(col.palettes[as.integer(type.use)])
+}
+#' Prints table as percentage values
+#'
+#' @param tbl table
+#' 
+#' @return none
+#'
+#' @examples
+#' RET <- makeMarkerHeatmaps(RET, marker.lists)
+#' printMarkerHeatmaps(RET)
+#'
+#' @export
+percent.table <- function(tbl) {
+  props <- tbl/rowSums(tbl)
+  return(t(round(props * 100, 1)))
+}
+
+
+#' Summarizes 2 variables
+#' 
+#' @param var.1 first list of values with length n 
+#' @param var.2 second list of values with length m
+#' @param transpose whether to flip results
+#' @param do.percent whether to use percent or raw counts (default)
+#' @param do.format whether to return %-formatted strings or numeric
+#' 
+#' @importFrom dplyr mutate_all
+#' @importFrom scales percent
+#' @export
+breakdownTable <- function(var.1, var.2, transpose = F, do.percent = T, do.format = T) {
+  sum.tbl <- table(var.1, var.2)
+  if (do.percent) {
+    sum.tbl <- percent.table(sum.tbl) 
+  } 
+  if (transpose) sum.tbl <- t(sum.tbl)
+  MAT <- as.data.frame.matrix(sum.tbl)
+  
+# if (transpose) {
+#   MAT <- as.data.frame.matrix(t(percent.table(table(var.1, var.2))))
+# } else {
+#   MAT <- as.data.frame.matrix(percent.table(table(var.1, var.2)))
+# }
+  print(MAT)
+  if (do.percent & do.format) {
+    new.MAT <- dplyr::mutate_all(MAT, funs(scales::percent(., accuracy = 0.1, scale = 1)))
+    rownames(new.MAT) <- rownames(MAT)
+    return(new.MAT)
+  } else if (!do.percent) {
+    return(t(MAT))
+  }
+}
+
+#' Prints markers distinguishing clusters in a Seurat object
+#'
+#' @param RET list containing Seurat object and plots
+#' 
+#' @return list containing clustered Seurat object and TSNE plots
+#'
+#' @examples
+#' printSeuratMarkers(RET)
+#'
+#' @export
+printSeuratMarkers <- function(RET) {
+  for (ident in levels(Idents(RET@seurat))) {
+    print(ident)
+    print(prettyPrintMarkers(RET@meta.list$all.markers.full, ident))
+  }
+}
+
+
+
+#' Makes heatmaps for Seurat object
+#'
+#'
+#' @param RET gcdSeurat object
+#' @param marker.lists list of markers (may be genes or module scores)
+#' 
+#' @return list containing Seurat object and marker heatmaps
+#'
+#' @examples
+#' makeMarkerHeatmaps(RET, marker.lists)
+#'
+#' @export
+makeMarkerHeatmaps <- function(RET, marker.lists) {
+  require("Seurat")
+  require("ggplot2")
+  marker.plots <- list(violin = list(), feature = list(), dotplot = list())
+  for (marked.group in names(marker.lists)) {
+    markers <- marker.lists[[marked.group]][marker.lists[[marked.group]] %in% rownames(RET@seurat)]
+    
+    # RET@plots$markers[[marked.group]]$heatmap <- DoHeatmap(SubsetData(RET@seurat, max.cells.per.ident = 500), 
+    # features = marker.lists[[marked.group]]) + ggtitle(marked.group)
+    marker.plots$violin[[marked.group]] <- VlnPlot(RET@seurat, features = markers, pt.size = 0	) #+ ggplot2::ggtitle(marked.group)
+    # marker.plots$feature[[marked.group]] <- FeaturePlot(RET@seurat, features = markers, reduction = "umap") #+ ggplot2::ggtitle(marked.group)
+    marker.plots$dotplot[[marked.group]] <- DotPlot(RET@seurat, features = markers) + ggplot2::ggtitle(marked.group)
+  }
+  RET@plots$markers <- marker.plots
+  return(RET)
+}
+
+#' Prints heatmaps for Seurat object
+#'
+#'
+#' @param RET list containing Seurat object and plots
+#' 
+#' @return none
+#'
+#' @examples
+#' RET <- makeMarkerHeatmaps(RET, marker.lists)
+#' printMarkerHeatmaps(RET)
+#'
+#' @export
+printMarkerHeatmaps <- function(RET) {
+  for(name in names(RET@plots$markers)) {
+    print(plot_grid(RET@plots$markers[[name]]$violin, RET@plots$markers[[name]]$feature, ncol=1))
+  }
 }

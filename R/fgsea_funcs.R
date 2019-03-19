@@ -12,15 +12,16 @@
 seuratDEresToGSEARanks <- function(de.table) {
   # de.markers <- de.table
   de.markers <- mutate(de.table, p_val = ifelse(p_val == 0, 1E-300, p_val))
-  de.markers <- filter(de.markers, p_val < 0.01)
+  # de.markers <- filter(de.markers, p_val < 0.01)
   # de.markers[!(is.na(de.markers$p_val)) & de.markers$p_val == 0,]$p_val <- 
   # de.markers <- de.markers[!duplicated(de.markers$gene),]
-  de.markers <- mutate(de.markers, sign = ifelse(abs(avg_logFC) > 0.3, sign(avg_logFC), sign(pct.1 - pct.2)))
+  de.markers <- mutate(de.markers, sign = ifelse(abs(avg_logFC) > 0.15, avg_logFC, pct.1 - pct.2))
   de.markers <- mutate(de.markers, rank_metric = -log10(p_val) * sign)
   # de.markers <- mutate(de.markers, rank_metric = -log10(p_val) * sign(avg_logFC))
-
+  # de.markers$round_metric <- round(de.markers$rank_metric, 2)
   de.markers <- de.markers[!duplicated(de.markers$rank_metric),]
   de.markers <- de.markers[!duplicated(de.markers$gene),]
+  
   ranks <- data.frame(de.markers$rank_metric)
   ranks <- setNames(ranks$de.markers.rank_metric,
                     de.markers$gene)
@@ -55,6 +56,37 @@ gseaPerCluster <- function(ranks, pathways) {
   }
   return(fgseaRes)
 }
+
+#' Wrapper running fgsea
+#'
+#'
+#' @param RET list containing Seurat object
+#' @param idents.to.use 
+#' 
+#' @export
+checkFGSEARanks <- function(RET, idents.to.use = NULL, overwrite = F) {
+  if (! "pathways" %in% names(RET@fgsea) | ! "results" %in% names(RET@fgsea) | ! "prefixes" %in% names(RET@fgsea)) {
+    RET@fgsea <- list(pathways = list(),
+                      results = list(),
+                      prefixes = list())
+  }
+  if (is.null(idents.to.use)) idents.to.use <- names(BestMarkers(RET))
+  
+  if (!ActiveIdent(RET) %in% names(RET@fgsea$results)) {
+    RET@fgsea$results[[ActiveIdent(RET)]] <- list(ranks = list(), output = list())
+  }
+
+  for (ident in idents.to.use) {
+    if (overwrite | !ident %in% names(RET@fgsea$results[[ActiveIdent(RET)]]$ranks)) {
+      RET@fgsea$results[[ActiveIdent(RET)]]$ranks[[ident]] <- seuratDEresToGSEARanks(BestMarkers(RET)[[ident]])
+    }
+    if (!ident %in% names(RET@fgsea$results[[ActiveIdent(RET)]]$output)) {
+      RET@fgsea$results[[ActiveIdent(RET)]]$output[[ident]] <- list()
+    }
+  }
+  return(RET)
+}
+
 #' Wrapper running fgsea
 #'
 #'
@@ -64,42 +96,53 @@ gseaPerCluster <- function(ranks, pathways) {
 #' @param mouse whether to convert gene names prior to fgsea
 #' @return list containing ranks and fgsea output for each ident
 #'
+#' @importFrom fgsea fgseaMultilevel
+#'
 #' @examples
 #' fgseaWrapper(RET, pathways.list)
 #'
 #' @export
-fgseaWrapper <- function(RET, pathways.list, prefixes = NULL, idents.to.use = NULL) {
-  fgsea <- ifelse(length(RET@fgsea) > 0, RET@fgsea, 
-                  list(pathways = list(), 
-                       results = list(), 
-                       prefixes=list()))
-  markers <- BestMarkers(RET)
-  if (is.null(idents.to.use)) idents.to.use <- names(markers)
-  if (!ActiveIdent(RET) %in% names(fgsea$results)) {
-    fgsea$results[[ActiveIdent(RET)]] <- list(ranks = list(), output = list())
-  }
-  for (ident in idents.to.use) {
-    if (!ident %in% names(fgsea$results[[ActiveIdent(RET)]]$ranks)) {
-      fgsea$results[[ActiveIdent(RET)]]$ranks[[ident]] <- seuratDEresToGSEARanks(markers[[ident]])
-    }
-    if (!ident %in% names(fgsea$results[[ActiveIdent(RET)]]$output)) {
-      fgsea$results[[ActiveIdent(RET)]]$output[[ident]] <- list()
-    }
-  }
+fgseaWrapper <- function(RET, pathways.list, 
+                         prefixes = NULL, idents.to.use = NULL, 
+                         shiny = F, nproc = NULL, verbose = T, multilevel = F,
+                         overwrite = F) {
+  if (is.null(nproc)) nproc <- parallel::detectCores()
+  
+  # markers <- BestMarkers(RET)
+  if (is.null(idents.to.use)) idents.to.use <- names(BestMarkers(RET))
+  RET <- checkFGSEARanks(RET, idents.to.use, overwrite)
   
   
   for (i in 1:length(pathways.list)) {
     path.name <- names(pathways.list)[i]
     pathways <- pathways.list[[path.name]]
-    fgsea$pathways[[path.name]] <- pathways
-    fgsea$prefixes[[path.name]] <- ifelse(is.null(prefixes), "", prefixes[i])
+    RET@fgsea$pathways[[path.name]] <- pathways
+    RET@fgsea$prefixes[[path.name]] <- ifelse(is.null(prefixes), "", prefixes[i])
     for (ident in idents.to.use) {
-      fgsea$results[[ActiveIdent(RET)]]$output[[ident]][[path.name]] <- fgsea::fgsea(pathways = pathways, 
-                                stats = fgsea$results[[ActiveIdent(RET)]]$ranks[[ident]],
-                                minSize=15,
-                                maxSize=500,
-                                nperm=20000, 
-                                nproc = parallel::detectCores())
+      
+      if (shiny) {
+        incProgress(1/(length(idents.to.use) * length(pathways.list)),
+                    detail = paste0("Calculating cluster ", ident))
+      }
+      if (verbose) {
+        message(paste0("Calculating cluster ", ident))
+      }
+      if (multilevel) {
+        RET@fgsea$results[[ActiveIdent(RET)]]$output[[ident]][[path.name]] <- 
+          fgseaMultilevel(pathways = pathways, 
+                          stats = RET@fgsea$results[[ActiveIdent(RET)]]$ranks[[ident]],
+                          maxSize=500,
+                          # nperm=100000, 
+                          nproc = nproc)
+      } else {
+        RET@fgsea$results[[ActiveIdent(RET)]]$output[[ident]][[path.name]] <- 
+          fgsea(pathways = pathways, 
+                          stats = RET@fgsea$results[[ActiveIdent(RET)]]$ranks[[ident]],
+                          maxSize=500,
+                          nperm=100000,
+                          nproc = nproc)
+      }
+      
     }
     # fgsea$plots[[path.name]] <- gseaTopPlots(fgseaRes = fgsea$results[[path.name]],
     #                                              pathways = pathways, 
@@ -108,7 +151,7 @@ fgseaWrapper <- function(RET, pathways.list, prefixes = NULL, idents.to.use = NU
   }
   
   # RET@fgsea[[ActiveIdent(RET)]] <- fgseaFromMarkers(BestMarkers(RET), pathways.list, prefixes)
-  RET@fgsea <- fgsea
+  
   return(RET)
 }
 #' Wrapper running fgsea

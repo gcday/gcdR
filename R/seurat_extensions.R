@@ -431,3 +431,47 @@ seuratMarkersBetweenConditions <- function(SRT, cond.var, cond.1, cond.2) {
   }
   return(cond.markers)
 }
+
+
+#' Guesses whether data is aligned to a human, mouse, or other reference.
+#' Uses msigdbr gene lists.
+#'
+#'
+#' @param RET gcdSeurat
+#' @param exhaustive FALSE by default, meaning only mouse and human are considered. Use TRUE to check all possible species in msigdbr.
+#'
+#' @return best fit species
+#' 
+#' @importFrom msigdbr msigdbr msigdbr_show_species
+#'
+#' @examples
+#' guessGCDSeuratSpecies(RET)
+#'
+#' @export
+guessGCDSeuratSpecies <- function(RET, exhaustive = F, verbose = F) {
+  if (exhaustive) {
+    species.list <- msigdbr_show_species()
+  } else {
+    species.list <- list("Homo sapiens", "Mus musculus")
+  }
+  max.length <- 0
+  best.fit <- NULL
+  for (species in species.list) {
+    species.length <- length(intersect(unique(msigdbr(species)$gene_symbol),
+                                       rownames(RET@seurat)))
+    if (verbose) {
+      message(species.length, " features match ", species, " gene names.")
+    }
+    if (species.length > max.length) {
+      best.fit <- species
+      max.length <- species.length
+    }
+  }
+  if (is.null(best.fit)) {
+    warning("No good species fit detected!")
+  }
+  if (verbose) {
+    message("Best guess: ", species, ", with ", max.length, " matches.")
+  }
+  return(best.fit)
+}

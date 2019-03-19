@@ -12,18 +12,58 @@ library(yaml)
 library(dplyr)
 library(DT)
 library(colorspace)
-options(shiny.maxRequestSize = 12000*1024^2)
+library(shinyFiles)
+library(shinyWidgets)
+library(fs)
+
+options(shiny.maxRequestSize = 120000*1024^2)
+
+
 
 plan(multicore, workers = parallel::detectCores() - 1)
 
 
 sidebar <- dashboardSidebar(
   tags$style(".skin-blue .sidebar a { color: #444; }"),
+  tags$style(".pretty {
+    white-space: inherit;
+             width: 14rem;
+             }
+
+             .pretty .state label{
+             text-indent: 0;
+             padding-left: 2rem;
+             }
+
+             .pretty .state label:after,
+             .pretty .state label:before{
+                top: calc(50% - ((1em + 2px)/2));
+             }
+             .pretty .state label:after,
+             .pretty .state label:before,
+             .pretty.p-icon .state .icon {
+                top: calc(50% - ((1em + 2px)/2));
+             }"),
+  # tags$style(".pretty {
+  #   white-space: normal;
+  #            }
+  #            .pretty .state label::after, .pretty .state label::before
+  #            {
+  #            top:-2px;
+  #            }"),
   
   fileInput('IMAGE','Choose RDS File',
             multiple=FALSE,
             accept=c('.RDS')),
+  shinyFilesButton('file', 'Load Dataset', 'Please select a dataset', FALSE),
+  # shinySaveButton('save.file', "Save dataset", "Please select a name", "")
+  # conditionalPanel("input$file",
+  shinySaveButton("serverside_save", "Save dataset", "Save file as...", filetype = list(RDS = "rds")),
+  # , filetype = list(RDS = "rds")),
+  # ),
+  
   div(style = "margin-left: 10px; margin-bot: 5px;",
+      # shinyFilesButton("LOCAL.FILE", "Local file", "Please select a file", multiple = FALSE),
     downloadButton("DOWNLOAD.DATA", "Save RDS file")
     ),
   sidebarMenu(id = "sidebarTabs",
@@ -34,21 +74,36 @@ sidebar <- dashboardSidebar(
                        actionButton("RECLUSTER", "Re-cluster", icon = icon("calculator")),
                        tipify(selectizeInput('SPLIT.BY', 'Secondary split value', 
                                       choices = NULL, selected = NULL),
-                          "Used for group breakdown table; reccomended choices include \"Phase\" (cell cycle) and sample")
+                          "Used for group breakdown table; reccomended choices include \"Phase\" (cell cycle) and sample", placement = "top"),
+                       radioGroupButtons("SPLIT.TYPE", "Split type", choices = c(Counts = "counts", Percent = "percent"), selected = "percent"), 
+                       radioGroupButtons("SPLIT.PALETTE", "Color palette for split", 
+                                         direction = "horizontal", 
+                                         choices = c(`1` = 1, `2` = 2, `3` = 3, `4` = 4), 
+                                         selected = 2)
                      )),
     menuItem("Gene expression", icon = icon("dna"), tabName = "genePanel"),
     conditionalPanel("input.sidebarTabs == 'genePanel'",
                      div(style = "margin-left: 10px;",
                          tipify(selectizeInput("GENE", "Gene", choices = NULL,
                                         selected=NULL, multiple=T), 
-                                "Enter one or more genes", placement = "bottom")
+                                "Enter one or more genes", placement = "top"),
+                         checkboxInput("GENE.VIOLIN.SHOW",
+                                       "Show cells as dots in violin plot", 
+                                       value = F)
                      )),
-    menuItem("DE genes", icon = icon("chart-bar"), tabName = "DEPanel"),
+    menuItem("DE genes", icon = icon("balance-scale"), tabName = "DEPanel"),
     conditionalPanel("input.sidebarTabs == 'DEPanel'",
                      div(style = "margin-left: 10px;",
                          actionButton("DO.MARKERS", "Find DE markers", icon = icon("calculator"))
                      )),
     menuItem("GSEA", icon = icon("chart-bar"), tabName = "GSEAPanel"),
+    conditionalPanel("input.sidebarTabs == 'GSEAPanel'",
+                     div(style = "margin-left: 10px; ",
+                         actionButton("DO.FGSEA", "Run FGSEA", icon = icon("calculator")),
+                          prettyCheckbox("FGSEA.ONLY.POS",
+                                      "Show only enriched pathways (positive ES)",
+                                      value = T, status = "primary")
+                     )),
     menuItem("Marker sets", icon = icon("th"), tabName = "markerPanel"),
     conditionalPanel("input.sidebarTabs == 'markerPanel'",
                      div(style = "margin-left: 10px;",
@@ -64,16 +119,21 @@ sidebar <- dashboardSidebar(
           uiOutput("DIM.REDUC.CHOICE"),
           tipify(
             selectizeInput('CLUSTER', 'Group cells by', choices = NULL, selected = NULL),
-            "Reccomended: group cells by clusters here, then use \"Secondary split value\" under Overview to analyze breakdown by sample, cell cycle phase, etc."
+            "Reccomended: group cells by clusters here, then use \"Secondary split value\" under Overview to analyze breakdown by sample, cell cycle phase, etc.", placement = "top"
           ),
           selectizeInput('FILTER','Filter by', choices = c(None=""), selected = NULL),
           uiOutput("NAMES"),
           
-          actionButton("CHANGE.GRP.NAME", "Rename group label"),
+          actionButton("CHANGE.GRP.NAME", "Rename group"),
           actionButton("RENAME.IDENT", "Save current groups"),
-          radioButtons("COLOR.PALETTE", "Color palette",  
-                       choices = c(`1` = 1, `2` = 2, `3` = 3, `4` = 4), selected = 1)
+          radioGroupButtons("COLOR.PALETTE", "Color palette", 
+                               direction = "horizontal", 
+                               choices = c(`1` = 1, `2` = 2, `3` = 3, `4` = 4), 
+                            selected = 1)
+          # radioButtons("COLOR.PALETTE", "Color palette",  
+          #              choices = c(`1` = 1, `2` = 2, `3` = 3, `4` = 4), selected = 1)
       )
+  
 
 
 )
@@ -163,74 +223,8 @@ body <- dashboardBody(
 
 
 
-ui <- dashboardPage(
+ui <- shinyUI(dashboardPage(
   dashboardHeader(title = 'scRNA-Seq Gene and Cluster Viewer'),
   sidebar,
   body
-)
-# ui <- shinyUI(fluidPage(
-#   
-#   #headerPanel('scRNA-Seq Gene and Cluster Viewer'),
-#   titlePanel('scRNA-Seq Gene and Cluster Viewer'),
-#   # sidebarPanel(
-#   fluidRow(  
-#     column(3,
-#            fileInput('IMAGE','Choose RDS File',
-#                        multiple=FALSE,
-#                        accept=c('.RDS')),
-#            conditionalPanel("input.IMAGE.name", {
-#              downloadButton("DOWNLOAD.DATA", "Save RDS file")
-#            }),
-#            # checkboxInput("EXPR.LIM", 
-#            #               "Force log-scale max for gene plots", FALSE),
-#            # uiOutput("MAXX"),
-#            checkboxInput("LABELS", "Include Labels", FALSE),
-#            radioButtons("DIM.REDUC", "Reduction",  
-#                           choices = c(`t-SNE` = "tsne"), selected = "tsne")),
-#            
-#     column(3,
-#            # radioButtons("MULTIGENE.MODE", "Viewing mode",  
-#            #              choices = c(`Single gene` = "single", `Multi-gene` = "multi"), selected = "single"),
-#            selectizeInput("GENE", "Gene", choices = NULL,
-#                           selected=NULL, multiple=T)),
-#            # uiOutput("GENE.LIST")),
-#     column(3,
-#            selectizeInput('CLUSTER', 'Group cells by', choices = NULL, selected = NULL),
-#            selectizeInput('SPLIT.BY', 'Alt. group by (optional)', 
-#                           choices = NULL, selected = NULL),
-#            selectizeInput('FILTER','Filter by', choices = c(None=""), selected = NULL),
-#            uiOutput("NAMES")),
-#            # radioButtons("COLOR.PALETTE", "Palette",  
-#                         # choices = c(`1` = 1, `2` = 2, `3` = 3), selected = 1)),
-#     column(3, 
-#            actionButton("do.cell.cycle", "CC scoring"),
-#            actionButton("DO.MARKERS", "Find DE markers"),
-#            actionButton("CHANGE.GRP.NAME", "Rename group label(s)"),
-#            actionButton("RENAME.IDENT", "Save group labels")
-#            )),
-#   # mainPanel(
-#   tabsetPanel(tabPanel("Dim.plot", plotOutput("DIM.REDUC", width='800px', height='600px')),
-#               # tabPanel("Feat.plot", uiOutput("MULTIFEATURE.PLOT")),
-#               tabPanel("MultiGene", uiOutput("MULTIGENE.PLOT")),
-#               tabPanel("Group breakdown", uiOutput('SPLIT.SUMMARY.1')),
-#               tabPanel("Gene stats", uiOutput("GENE.SUMMARY")),
-#               tabPanel("Cluster tree", plotOutput("CLUSTER.TREE", width='600px', height='450px')),
-#               tabPanel("DE markers", uiOutput("DE.MARKERS")),
-#               tabPanel("Marker sets", uiOutput("MARKER.SETS"))
-#                        # renderUI({
-#                        
-#                         # uiOutput("MARKER.SETS"))
-#               )
-#                        
-#                        
-#                        # uiOutput("MARKER.SETS")))
-#   # )
-# ))
-
-
-
-
-# shinyApp(ui = ui, server = server)
-
-
-
+))

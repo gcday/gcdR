@@ -20,7 +20,8 @@ Imports:
 	scales,
 	ape,
 	yaml,
-	parallel
+	parallel,
+	fgsea (>= 1.9.4)
 Suggests:
 	fgsea
 

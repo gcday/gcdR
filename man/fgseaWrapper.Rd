@@ -4,7 +4,9 @@
 \alias{fgseaWrapper}
 \title{Wrapper running fgsea}
 \usage{
-fgseaWrapper(RET, pathways.list, prefixes = NULL)
+fgseaWrapper(RET, pathways.list, prefixes = NULL, idents.to.use = NULL,
+  shiny = F, nproc = NULL, verbose = T, multilevel = F,
+  overwrite = F)
 }
 \arguments{
 \item{RET}{list containing Seurat object}

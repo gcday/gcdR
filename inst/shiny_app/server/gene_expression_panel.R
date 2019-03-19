@@ -1,13 +1,19 @@
 doPlotsSingleGene <- function(gene, vln.width = "auto", vln.height = 400,
                               feat.width = "auto", feat.height = 500,
                               table.height = "200px") {
+  if (input$GENE.VIOLIN.SHOW) {
+    pt.size <- 1
+  } else {
+    pt.size <- 0
+  }
   tabPanel(title = gene,
            fluidRow(
              box(
                width = 5, status = "primary",
                renderPlot({
                  VlnPlot(DATA$RET@seurat, features = c(gene),
-                         cols = Palettes(DATA$orig.RET, as.integer(input$COLOR.PALETTE)), pt.size = 0) + NoLegend()
+                         cols = Palettes(DATA$orig.RET, as.integer(input$COLOR.PALETTE)), 
+                         pt.size = pt.size) + NoLegend()
                }, width = vln.width, height = vln.height),
                style=paste0("padding-top:", (feat.height - vln.height ) / 2 ,"px;")
              ),

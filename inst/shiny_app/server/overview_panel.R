@@ -86,26 +86,55 @@ output$DIM.REDUC.SPLIT <- renderPlot({
   }
   dim.plt <- DimPlot(SPLIT.RET@seurat,
                      group.by = input$SPLIT.BY,
-                     reduction = input$DIM.REDUC)
+                     reduction = input$DIM.REDUC,
+                     cols = Palettes(SPLIT.RET, type.use = as.integer(input$SPLIT.PALETTE)))
   return(dim.plt)
 })
 
-breakdownTable <- function(var.1, var.2, transpose = F) {
-  if (transpose) {
-    MAT <- as.data.frame.matrix(t(percent.table(table(var.1, var.2))))
-  } else {
-    MAT <- as.data.frame.matrix(percent.table(table(var.1, var.2)))
-  }
-  new.MAT <- dplyr::mutate_all(MAT, funs(scales::percent(., accuracy = 0.1, scale = 1)))
-  rownames(new.MAT) <- rownames(MAT)
-  return(new.MAT)
-}
 
 output$SPLIT.SUMMARY.1 <- renderUI({
-  req(DATA$RET, input$SPLIT.BY)
-  split.vals <- DATA$orig.RET@seurat[[input$SPLIT.BY]][[input$SPLIT.BY]]
-  dt.1 <- breakdownTable(split.vals, Idents(DATA$RET@seurat), T)
-  dt.2 <- breakdownTable(Idents(DATA$RET@seurat), split.vals)
+  req(DATA$RET, input$SPLIT.BY, input$SPLIT.TYPE)
+  do.percent <- input$SPLIT.TYPE == "percent"
+  split.vals <- as.factor(DATA$orig.RET@seurat[[input$SPLIT.BY]][[input$SPLIT.BY]])
+  dt.1 <- breakdownTable(split.vals, Idents(DATA$RET@seurat), 
+                         transpose = T
+                         )
+  dt.2 <- breakdownTable(Idents(DATA$RET@seurat), 
+                         split.vals)
+  
+  summary.table <- table(Idents(DATA$RET@seurat), split.vals)
+  # if (input$SPLIT.TYPE == "percent") summary.table <- gcdR::percent.table(summary.table)
+  
+  
+  
+  revised.dt <- NULL
+  # 
+  # here col is ident level
+  # 
+  # for (col in colnames(dt.1)) {
+  #   for (i in 1:length(dt.1[[col]])) {
+  #     value.1 <- dt.1[[col]][i]
+  #     value.2 <- dt.2[[col]][i]
+  #     rowName <- rownames(dt.1)[i]
+  #     new.dt <- data.frame(col, rowName, value.1, value.2) 
+  #     revised.dt <- rbind(revised.dt, new.dt)
+  #   }
+  # }
+  # colnames(revised.dt) <- c(input$CLUSTER, input$SPLIT.BY, "percent.1", "percent.2")
+  # print(revised.dt)
+  for (i in 1:length(levels(DATA$RET@seurat))) {
+    for (j in 1:length(levels(split.vals))) {
+      val <- summary.table[i + (j - 1) * length(levels(DATA$RET@seurat))]
+      row <- levels(DATA$RET@seurat)[i]
+      col <- levels(split.vals)[j]
+      message(paste(row, col, val))
+      new.dt <- data.frame(row, col, val)
+      # "orig.ident", "count")
+      revised.dt <- rbind(revised.dt, new.dt)
+    }
+  }
+  colnames(revised.dt) <- c(input$CLUSTER, input$SPLIT.BY, "count")
+  
   fluidPage(
     fluidRow(
       box(title = paste0(input$SPLIT.BY, " makeup across ", input$CLUSTER),
@@ -121,6 +150,14 @@ output$SPLIT.SUMMARY.1 <- renderUI({
       )
     ),
     fluidRow(
+      renderPlot({
+        ggplot(revised.dt,
+               aes_string(fill=input$SPLIT.BY, y="count", x=input$CLUSTER)) +
+          geom_bar(stat="identity", position = ifelse(do.percent, "fill", "stack")) +
+          scale_fill_manual(values = Palettes(DATA$orig.RET, as.integer(input$SPLIT.PALETTE), var.use = input$SPLIT.BY))
+        })
+    ),
+    fluidRow(
       box(title = paste0(input$CLUSTER, " makeup across ", input$SPLIT.BY),
           width = NULL,
           height = "auto",
@@ -132,6 +169,18 @@ output$SPLIT.SUMMARY.1 <- renderUI({
               )
           )
       )
+    ),
+    fluidRow(
+      renderPlot({
+        ggplot(revised.dt,
+                aes_string(fill=input$CLUSTER, y="count", x=input$SPLIT.BY)) +
+          geom_bar(stat="identity", position = ifelse(do.percent, "fill", "stack")) +
+          scale_fill_manual(values = Palettes(DATA$orig.RET, as.integer(input$COLOR.PALETTE)))
+        # if (do.percent) {
+          # plt <- 
+           # + 
+          
+        })
     )
   )
 })

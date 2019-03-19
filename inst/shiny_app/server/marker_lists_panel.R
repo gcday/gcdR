@@ -28,6 +28,10 @@ multiPanelSeuratFigs <- function(features, fig.type = "violin", n.row = 2, n.col
 
 plotMultiFeatures <- function(markers.name, fig.type = "violin", n.row = 2, n.col = 2) {
   markers <- DATA$markers.list[[markers.name]]
+  markers <- markers[markers %in% rownames(DATA$RET@seurat)]
+  if (length(markers) == 0) {
+    return(NULL)
+  }
   split.markers <- split(markers, 
                          ceiling(seq_along(markers)/(n.row * n.col)))
   if (fig.type == "violin") {
@@ -67,7 +71,7 @@ output$MARKER.DOTPLOTS <- renderUI({
   req(DATA$RET, DATA$markers.list)
   do.call(what = shiny::tabsetPanel,
           args = purrr::map(names(DATA$markers.list), 
-                            .f = function(markers.name){
+                            .f = function(markers.name) {
                               tabPanel(title=markers.name,
                                        shiny::renderPlot({
                                          DotPlot(DATA$orig.RET@seurat, 

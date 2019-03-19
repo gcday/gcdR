@@ -1,3 +1,4 @@
+library(htmlwidgets)
 observeEvent(input$DO.MARKERS, {
   if (!IdentsSaved(DATA$orig.RET)) {
     if (!is.null(ClosestIdent(DATA$orig.RET))) {
@@ -41,121 +42,49 @@ output$DE.PANEL <- renderUI({
                  uiOutput("DE.MARKERS"))
     ))
 })
-
+makeDEMarkerPanel <- function(ident) {
+  markers.list <- BestMarkers(DATA$orig.RET)
+  tabPanel(title=ident,
+           renderDT({
+             datatable(dplyr::filter(markers.list[[ident]], 
+                           avg_logFC > 0) %>% 
+               dplyr::arrange(p_val_adj, -avg_logFC) %>%
+               dplyr::select(-p_val, -cluster) %>%
+               mutate(avg_logFC = round(avg_logFC, 2))) %>% 
+               formatSignif(columns = c("p_val_adj", "avg_logFC"), digits = 3)
+           }),
+           #, height = "550px"), 
+           # options = list(pageLength = 10, autoWidth = T)),
+           renderPlot({
+             top_markers <- dplyr::filter(markers.list[[ident]], 
+                                          avg_logFC > 0) %>% 
+               dplyr::arrange(p_val_adj, -avg_logFC)
+             if (nrow(top_markers) > 25) {
+               markers <- top_markers$gene[1:25]
+             } else {
+               markers <- top_markers$gene
+             }
+             gcdDoHeatmap(DATA$orig.RET@seurat, 
+                          cells = WhichCells(DATA$orig.RET@seurat, downsample = 250),
+                          cols = Palettes(DATA$orig.RET, as.integer(input$COLOR.PALETTE)),
+                          features = markers, slot = "data")
+           }, height = 650, width = "auto")
+  )
+}
 output$DE.MARKERS <- renderUI({
-  req(DATA$orig.RET,  BestMarkers(DATA$orig.RET))
+  req(DATA$orig.RET,  isTruthy(BestMarkers(DATA$orig.RET)))
   
-  # markers.list <- DATA$orig.RET@markers$quick[[ActiveIdent(DATA$orig.RET)]]
   markers.list <- BestMarkers(DATA$orig.RET)
-  fgsea.res <- GseaRes(DATA$orig.RET)
-  req(length(intersect(names(markers.list), levels(DATA$orig.RET@seurat))) >= 1)
+  # req(length(intersect(names(markers.list), levels(DATA$orig.RET@seurat))) >= 1)
   
   do.call(tabBox,
           c(width = 12,
             height = "auto",
             purrr::map(names(markers.list),
-                       function(ident){
-                         tabPanel(title=ident,
-                                  renderDT({
-                                    dplyr::filter(markers.list[[ident]], 
-                                                  avg_logFC > 0) %>% 
-                                      dplyr::arrange(p_val_adj, -avg_logFC) %>%
-                                      dplyr::select(-p_val, -cluster) %>%
-                                      mutate(avg_logFC = round(avg_logFC, 2),
-                                             p_val_adj = formatC(p_val_adj, format = "e", digits = 2))
-                                  }, height = "550px", options = list(pageLength = 10, autoWidth = T)),
-                                  renderPlot({
-                                    top_markers <- dplyr::filter(markers.list[[ident]], 
-                                                                 avg_logFC > 0) %>% 
-                                      dplyr::arrange(p_val_adj, -avg_logFC)
-                                    if (nrow(top_markers) > 25) {
-                                      markers <- top_markers$gene[1:25]
-                                    } else {
-                                      markers <- top_markers$gene
-                                    }
-                                    gcdDoHeatmap(DATA$orig.RET@seurat, 
-                                                 cells = WhichCells(DATA$orig.RET@seurat, downsample = 250),
-                                                 cols = Palettes(DATA$orig.RET, as.integer(input$COLOR.PALETTE)),
-                                                 features = markers, slot = "data")
-                                  }, height = 650, width = "auto"),
-                                  do.call(tabBox,
-                                  c(width = 12,
-                                    height = "auto",
-                                    purrr::map(names(GseaRes(DATA$orig.RET)$output[[ident]]),
-                                       function(pathway.list.name){
-                                         tabPanel(title=pathway.list.name,
-                                                  renderDT({
-                                                    GseaRes(DATA$orig.RET)$output[[ident]][[pathway.list.name]]                                           %>% dplyr::select(-pval) %>%
-                                                      dplyr::arrange(padj) %>%
-                                                      dplyr::mutate(ES = round(ES, 2), 
-                                                                    NES = round(NES, 2),
-                                                                    padj = formatC(padj, format = "e", digits = 2))
-                                                          
-                                                                  # dplyr::filter(markers.list[[ident]], 
-                                                                  #               avg_logFC > 0) %>% 
-                                                                  #   dplyr::arrange(p_val_adj, -avg_logFC) %>%
-                                                                  #   dplyr::select(-p_val, -cluster) %>%
-                                                                  #   mutate(avg_logFC = round(avg_logFC, 2),
-                                                                  #          p_val_adj = formatC(p_val_adj, format = "e", digits = 2))
-                                                                }, height = "550px", options = list(pageLength = 10, autoWidth = T))
-                                                       )
-                                                       }
-                                            ))
-                                  )
-                                                       
-                         )
-                       }))
+                       makeDEMarkerPanel
+                       ))
   )
 })
 
-
-output$FGSEA.PANEL <- renderUI({
-  fluidPage(
-    fluidRow(box(width = "100%",
-                 height = "auto",
-                 uiOutput("FGSEA"))
-    ))
-})
-
-
-
-output$FGSEA <- renderUI({
-  req(DATA$orig.RET, BestMarkers(DATA$orig.RET))
-  
-  markers.list <- BestMarkers(DATA$orig.RET)
-  req(length(intersect(names(markers.list), levels(DATA$orig.RET@seurat))) >= 1)
-  
-  do.call(tabBox,
-          c(width = 12,
-            height = "auto",
-            purrr::map(names(markers.list),
-                       function(ident){
-                         tabPanel(title=ident,
-                                  renderDT({
-                                    dplyr::filter(markers.list[[ident]], 
-                                                  avg_logFC > 0) %>% 
-                                      dplyr::arrange(p_val_adj, -avg_logFC) %>%
-                                      dplyr::select(-p_val, -cluster) %>%
-                                      mutate(avg_logFC = round(avg_logFC, 2),
-                                             p_val_adj = formatC(p_val_adj, format = "e", digits = 2))
-                                  }, height = "550px", options = list(pageLength = 10, autoWidth = T)),
-                                  renderPlot({
-                                    top_markers <- dplyr::filter(markers.list[[ident]], 
-                                                                 avg_logFC > 0) %>% 
-                                      dplyr::arrange(p_val_adj, -avg_logFC)
-                                    if (nrow(top_markers) > 25) {
-                                      markers <- top_markers$gene[1:25]
-                                    } else {
-                                      markers <- top_markers$gene
-                                    }
-                                    gcdDoHeatmap(DATA$orig.RET@seurat, 
-                                                 cells = WhichCells(DATA$orig.RET@seurat, downsample = 250),
-                                                 cols = Palettes(DATA$orig.RET, as.integer(input$COLOR.PALETTE)),
-                                                 features = markers, slot = "data")
-                                  }, height = 650, width = "auto")
-                         )
-                       }))
-  )
-})
 
 

@@ -93,12 +93,10 @@ output$DIM.REDUC.SPLIT <- renderPlot({
 
 
 output$SPLIT.SUMMARY.1 <- renderUI({
-  req(DATA$RET, input$SPLIT.BY, input$SPLIT.TYPE)
+  req(DATA$RET, input$SPLIT.BY, input$CLUSTER)
   do.percent <- input$SPLIT.TYPE == "percent"
-  split.vals <- as.factor(DATA$orig.RET@seurat[[input$SPLIT.BY]][[input$SPLIT.BY]])
-  dt.1 <- breakdownTable(split.vals, Idents(DATA$RET@seurat), 
-                         transpose = T
-                         )
+  split.vals <- as.factor(DATA$RET@seurat[[input$SPLIT.BY]][[input$SPLIT.BY]])
+  dt.1 <- breakdownTable(split.vals, Idents(DATA$RET@seurat), transpose = T)
   dt.2 <- breakdownTable(Idents(DATA$RET@seurat), 
                          split.vals)
   
@@ -108,28 +106,12 @@ output$SPLIT.SUMMARY.1 <- renderUI({
   
   
   revised.dt <- NULL
-  # 
-  # here col is ident level
-  # 
-  # for (col in colnames(dt.1)) {
-  #   for (i in 1:length(dt.1[[col]])) {
-  #     value.1 <- dt.1[[col]][i]
-  #     value.2 <- dt.2[[col]][i]
-  #     rowName <- rownames(dt.1)[i]
-  #     new.dt <- data.frame(col, rowName, value.1, value.2) 
-  #     revised.dt <- rbind(revised.dt, new.dt)
-  #   }
-  # }
-  # colnames(revised.dt) <- c(input$CLUSTER, input$SPLIT.BY, "percent.1", "percent.2")
-  # print(revised.dt)
   for (i in 1:length(levels(DATA$RET@seurat))) {
     for (j in 1:length(levels(split.vals))) {
       val <- summary.table[i + (j - 1) * length(levels(DATA$RET@seurat))]
       row <- levels(DATA$RET@seurat)[i]
       col <- levels(split.vals)[j]
-      message(paste(row, col, val))
       new.dt <- data.frame(row, col, val)
-      # "orig.ident", "count")
       revised.dt <- rbind(revised.dt, new.dt)
     }
   }
@@ -151,10 +133,12 @@ output$SPLIT.SUMMARY.1 <- renderUI({
     ),
     fluidRow(
       renderPlot({
-        ggplot(revised.dt,
-               aes_string(fill=input$SPLIT.BY, y="count", x=input$CLUSTER)) +
-          geom_bar(stat="identity", position = ifelse(do.percent, "fill", "stack")) +
-          scale_fill_manual(values = Palettes(DATA$orig.RET, as.integer(input$SPLIT.PALETTE), var.use = input$SPLIT.BY))
+        plot <- ggplot(revised.dt,
+                       mapping=aes_string(x=input$CLUSTER, y="count", fill=input$SPLIT.BY)[c(2, 3, 1)])
+        return(plot + geom_bar(stat="identity", position = ifelse(do.percent, "fill", "stack")) +
+          scale_fill_manual(values = Palettes(DATA$orig.RET, 
+                                              as.integer(input$SPLIT.PALETTE), 
+                                              var.use = input$SPLIT.BY)) + SeuratAxes() + NoGrid() + RotatedAxis())
         })
     ),
     fluidRow(
@@ -172,14 +156,12 @@ output$SPLIT.SUMMARY.1 <- renderUI({
     ),
     fluidRow(
       renderPlot({
-        ggplot(revised.dt,
-                aes_string(fill=input$CLUSTER, y="count", x=input$SPLIT.BY)) +
+        plot <- ggplot(revised.dt,
+                       aes_string(x=input$SPLIT.BY, y="count", fill = input$CLUSTER)[c(2, 3, 1)])
+        return(plot + 
           geom_bar(stat="identity", position = ifelse(do.percent, "fill", "stack")) +
-          scale_fill_manual(values = Palettes(DATA$orig.RET, as.integer(input$COLOR.PALETTE)))
-        # if (do.percent) {
-          # plt <- 
-           # + 
-          
+          scale_fill_manual(values = Palettes(DATA$orig.RET, as.integer(input$COLOR.PALETTE))) + 
+          SeuratAxes() + NoGrid() + RotatedAxis())
         })
     )
   )

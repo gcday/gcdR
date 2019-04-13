@@ -299,12 +299,17 @@ percent.table <- function(tbl) {
 #' @param var.2 second list of values with length m
 #' @param transpose whether to flip results
 #' @param do.percent whether to use percent or raw counts (default)
-#' @param do.format whether to return %-formatted strings or numeric
+#' @param do.format whether to return percent-formatted strings or numeric
 #' 
 #' @importFrom dplyr mutate_all
 #' @importFrom scales percent
+#' 
 #' @export
-breakdownTable <- function(var.1, var.2, transpose = F, do.percent = T, do.format = T) {
+breakdownTable <- function(var.1, 
+                           var.2, 
+                           transpose = F, 
+                           do.percent = T, 
+                           do.format = T) {
   sum.tbl <- table(var.1, var.2)
   if (do.percent) {
     sum.tbl <- percent.table(sum.tbl) 
@@ -312,12 +317,6 @@ breakdownTable <- function(var.1, var.2, transpose = F, do.percent = T, do.forma
   if (transpose) sum.tbl <- t(sum.tbl)
   MAT <- as.data.frame.matrix(sum.tbl)
   
-# if (transpose) {
-#   MAT <- as.data.frame.matrix(t(percent.table(table(var.1, var.2))))
-# } else {
-#   MAT <- as.data.frame.matrix(percent.table(table(var.1, var.2)))
-# }
-  print(MAT)
   if (do.percent & do.format) {
     new.MAT <- dplyr::mutate_all(MAT, funs(scales::percent(., accuracy = 0.1, scale = 1)))
     rownames(new.MAT) <- rownames(MAT)
@@ -391,4 +390,466 @@ printMarkerHeatmaps <- function(RET) {
   for(name in names(RET@plots$markers)) {
     print(plot_grid(RET@plots$markers[[name]]$violin, RET@plots$markers[[name]]$feature, ncol=1))
   }
+}
+
+
+#' Prints heatmaps for Seurat object
+#'
+#'
+#' @param RET list containing Seurat object and plots
+#' 
+#' @return none
+#'
+#' @examples
+#' RET <- makeMarkerHeatmaps(RET, marker.lists)
+#' printMarkerHeatmaps(RET)
+#' 
+#' @importFrom yaml read_yaml
+#'
+#' @export
+readMarkersYAML <- function(yaml.path) {
+  raw.list <- read_yaml(yaml.path)
+  markers.list <- list()
+  alt.names <- list()
+  for (group.name in names(raw.list)) {
+    markers <- raw.list[[group.name]]
+    markers.list[[group.name]] <- NULL
+    # alt.names[[group.name]] <- NULL
+    for (marker.line in markers) {
+      splits <- unlist(strsplit(marker.line[[1]], split = "/", fixed = T))
+      if (length(splits) == 1) {
+        markers.list[[group.name]] <- c(markers.list[[group.name]], trimws(splits[[1]]))
+        # alt.names[[group.name]] <-  c(alt.names[[group.name]], NULL)
+      } else {
+        markers.list[[group.name]] <- c(markers.list[[group.name]], trimws(splits[[1]]))
+        alt.names[[trimws(splits[[1]])]] <-  trimws(splits[[2]])
+      }
+      
+    }
+    
+  }
+  print(alt.names)
+  return(list(markers.list = markers.list, alt.names = alt.names))
+}
+
+
+# Plot a single expression by identity on a plot
+#
+# @param type Make either a 'ridge' or 'violin' plot
+# @param data Data to plot
+# @param idents Idents to use
+# @param sort Sort identity classes (on the x-axis) by the average
+# expression of the attribute being potted
+# @param y.max Maximum Y value to plot
+# @param adjust Adjust parameter for geom_violin
+# @param cols Colors to use for plotting
+# @param log plot Y axis on log scale
+#
+# @return A ggplot-based Expression-by-Identity plot
+#
+# @import ggplot2
+#' @importFrom stats rnorm
+#' @importFrom utils globalVariables
+#' @importFrom ggridges geom_density_ridges theme_ridges stat_density_ridges
+#' @importFrom ggplot2 ggplot aes_string theme labs geom_violin geom_jitter ylim
+#' scale_fill_manual scale_y_log10 scale_x_log10 scale_y_discrete scale_x_continuous waiver
+#' @importFrom cowplot theme_cowplot
+#'
+SingleExIPlot <- function(
+  data,
+  idents,
+  split = NULL,
+  type = 'violin',
+  sort = FALSE,
+  y.max = NULL,
+  adjust = 1,
+  pt.size = 0,
+  cols = NULL,
+  log = FALSE,
+  show.quantiles = T,
+  quantiles = 4
+) {
+  set.seed(seed = 42)
+  if (!is.data.frame(x = data) || ncol(x = data) != 1) {
+    stop("'SingleExIPlot requires a data frame with 1 column")
+  }
+  feature <- colnames(x = data)
+  data$ident <- idents
+  if ((is.character(x = sort) && nchar(x = sort) > 0) || sort) {
+    data$ident <- factor(
+      x = data$ident,
+      levels = names(x = rev(x = sort(
+        x = tapply(
+          X = data[, feature],
+          INDEX = data$ident,
+          FUN = mean
+        ),
+        decreasing = grepl(pattern = paste0('^', tolower(x = sort)), x = 'decreasing')
+      )))
+    )
+  }
+  if (log) {
+    noise <- rnorm(n = length(x = data[, feature])) / 200
+    data[, feature] <- data[, feature] + 1
+  } else {
+    noise <- rnorm(n = length(x = data[, feature])) / 100000
+  }
+  if (all(data[, feature] == data[, feature][1])) {
+    warning(paste0("All cells have the same value of ", feature, "."))
+  } else{
+    data[, feature] <- data[, feature] + noise
+  }
+  axis.label <- ifelse(test = log, yes = 'Log Expression Level', no = 'Expression Level')
+  y.max <- y.max %||% max(data[, feature])
+  if (is.null(x = split) || type != 'violin') {
+    vln.geom <- geom_violin
+    fill <- 'ident'
+  } else {
+    data$split <- split
+    vln.geom <- geom_split_violin
+    fill <- 'split'
+  }
+  switch(
+    EXPR = type,
+    'violin' = {
+      x <- 'ident'
+      y <- paste0("`", feature, "`")
+      xlab <- 'Identity'
+      ylab <- axis.label
+      vln.quantiles <- NULL
+      if (show.quantiles) {
+        vln.quantiles <- seq(0, 1, length.out = quantiles + 1)[2:quantiles]
+      }
+      geom <- list(
+        vln.geom(scale = 'width', adjust = adjust, trim = TRUE,
+                 draw_quantiles = vln.quantiles),
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+      )
+      jitter <- geom_jitter(height = 0, size = pt.size)
+      log.scale <- scale_y_log10()
+      axis.scale <- ylim
+    },
+    'ridge' = {
+      x <- paste0("`", feature, "`")
+      y <- 'ident'
+      xlab <- axis.label
+      ylab <- 'Identity'
+      geom <- list(
+        geom_density_ridges(scale = 4),
+        theme_ridges(),
+        scale_y_discrete(expand = c(0.01, 0)),
+        scale_x_continuous(expand = c(0, 0))
+      )
+      if (show.quantiles) geom <- append(geom, stat_density_ridges(quantile_lines = T, scale = 4))
+      jitter <- geom_jitter(width = 0, size = pt.size)
+      log.scale <- scale_x_log10()
+      axis.scale <- function(...) {
+        invisible(x = NULL)
+      }
+    },
+    stop("Unknown plot type: ", type)
+  )
+  plot <- ggplot(
+    data = data,
+    mapping = aes_string(x = x, y = y, fill = fill)[c(2, 3, 1)]
+  ) +
+    labs(x = xlab, y = ylab, title = feature, fill = NULL) +
+    theme_cowplot()
+  plot <- do.call(what = '+', args = list(plot, geom))
+  plot <- plot + if (log) {
+    log.scale
+  } else {
+    axis.scale(min(data[, feature]), y.max)
+  }
+  if (pt.size > 0) {
+    plot <- plot + jitter
+  }
+  if (!is.null(x = cols)) {
+    if (!is.null(x = split)) {
+      idents <- unique(x = as.vector(x = data$ident))
+      splits <- unique(x = as.vector(x = data$split))
+      labels <- if (length(x = splits) == 2) {
+        splits
+      } else {
+        unlist(x = lapply(
+          X = idents,
+          FUN = function(pattern, x) {
+            x.mod <- gsub(
+              pattern = paste0(pattern, '.'),
+              replacement = paste0(pattern, ': '),
+              x = x,
+              fixed = TRUE
+            )
+            x.keep <- grep(pattern = ': ', x = x.mod, fixed = TRUE)
+            x.return <- x.mod[x.keep]
+            names(x = x.return) <- x[x.keep]
+            return(x.return)
+          },
+          x = unique(x = as.vector(x = data$split))
+        ))
+      }
+      if (is.null(x = names(x = labels))) {
+        names(x = labels) <- labels
+      }
+    } else {
+      labels <- unique(x = as.vector(x = data$ident))
+    }
+    plot <- plot + scale_fill_manual(values = cols, labels = labels)
+  }
+  return(plot)
+}
+
+#' Single cell ridge plot
+#'
+#' Draws a ridge plot of single cell data (gene expression, metrics, PC
+#' scores, etc.)
+#'
+#' @param object Seurat object
+#' @param features Features to plot (gene expression, metrics, PC scores,
+#' anything that can be retreived by FetchData)
+#' @param cols Colors to use for plotting
+#' @param idents Which classes to include in the plot (default is all)
+#' @param sort Sort identity classes (on the x-axis) by the average
+#' expression of the attribute being potted, can also pass 'increasing' or 'decreasing' to change sort direction
+#' @param assay Name of assay to use, defaults to the active assay
+#' @param group.by Group (color) cells in different ways (for example, orig.ident)
+#' @param y.max Maximum y axis value
+#' @param same.y.lims Set all the y-axis limits to the same values
+#' @param log plot the feature axis on log scale
+#' @param ncol Number of columns if multiple plots are displayed
+#' @param combine Combine plots into a single gg object; note that if TRUE; themeing will not work when plotting multiple features
+#' @param slot Use non-normalized counts data for plotting
+#' @param ... Extra parameters passed on to \code{\link{CombinePlots}}
+#'
+#' @return A ggplot object
+#'
+#' @export
+#'
+#' @examples
+#' RidgePlot(object = pbmc_small, features = 'PC1')
+#'
+GCD.RidgePlot <- function(
+  object,
+  features,
+  cols = NULL,
+  idents = NULL,
+  sort = FALSE,
+  assay = NULL,
+  group.by = NULL,
+  y.max = NULL,
+  same.y.lims = FALSE,
+  log = FALSE,
+  ncol = NULL,
+  combine = TRUE,
+  slot = 'data',
+  show.quantiles = TRUE,
+  quantiles = 4,
+  ...
+) {
+  return(ExIPlot(
+    object = object,
+    type = 'ridge',
+    features = features,
+    idents = idents,
+    ncol = ncol,
+    sort = sort,
+    assay = assay,
+    y.max = y.max,
+    same.y.lims = same.y.lims,
+    cols = cols,
+    group.by = group.by,
+    log = log,
+    combine = combine,
+    slot = slot,
+    show.quantiles = show.quantiles,
+    quantiles = quantiles,
+    ...
+  ))
+}
+# Plot feature expression by identity
+#
+# Basically combines the codebase for VlnPlot and RidgePlot
+#
+# @param object Seurat object
+# @param plot.type Plot type, choose from 'ridge' or 'violin'
+# @param features Features to plot (gene expression, metrics, PC scores,
+# anything that can be retreived by FetchData)
+# @param idents Which classes to include in the plot (default is all)
+# @param ncol Number of columns if multiple plots are displayed
+# @param sort Sort identity classes (on the x-axis) by the average expression of the attribute being potted
+# @param y.max Maximum y axis value
+# @param same.y.lims Set all the y-axis limits to the same values
+# @param adjust Adjust parameter for geom_violin
+# @param pt.size Point size for geom_violin
+# @param cols Colors to use for plotting
+# @param group.by Group (color) cells in different ways (for example, orig.ident)
+# @param split.by A variable to split the plot by
+# @param log plot Y axis on log scale
+# @param combine Combine plots using cowplot::plot_grid
+# @param slot Use non-normalized counts data for plotting
+# @param ... Extra parameters passed to \code{\link{CombinePlots}}
+#
+#' @importFrom scales hue_pal
+#
+ExIPlot <- function(
+  object,
+  features,
+  type = 'violin',
+  idents = NULL,
+  ncol = NULL,
+  sort = FALSE,
+  assay = NULL,
+  y.max = NULL,
+  same.y.lims = FALSE,
+  adjust = 1,
+  cols = NULL,
+  pt.size = 0,
+  group.by = NULL,
+  split.by = NULL,
+  log = FALSE,
+  combine = TRUE,
+  slot = 'data',
+  show.quantiles = FALSE,
+  quantiles = NULL,
+  ...
+) {
+  assay <- assay %||% DefaultAssay(object = object)
+  DefaultAssay(object = object) <- assay
+  ncol <- ncol %||% ifelse(
+    test = length(x = features) > 9,
+    yes = 4,
+    no = min(length(x = features), 3)
+  )
+  data <- FetchData(object = object, vars = features, slot = slot)
+  features <- colnames(x = data)
+  if (is.null(x = idents)) {
+    cells <- colnames(x = object)
+  } else {
+    cells <- names(x = Idents(object = object)[Idents(object = object) %in% idents])
+  }
+  data <- data[cells, , drop = FALSE]
+  idents <- if (is.null(x = group.by)) {
+    Idents(object = object)[cells]
+  } else {
+    object[[group.by, drop = TRUE]][cells]
+  }
+  if (!is.factor(x = idents)) {
+    idents <- factor(x = idents)
+  }
+  if (is.null(x = split.by)) {
+    split <- NULL
+  } else {
+    split <- object[[split.by, drop = TRUE]][cells]
+    if (!is.factor(x = split)) {
+      split <- factor(x = split)
+    }
+    if (is.null(x = cols)) {
+      cols <- hue_pal()(length(x = levels(x = idents)))
+    } else if (cols == 'interaction') {
+      split <- interaction(idents, split)
+      cols <- hue_pal()(length(x = levels(x = idents)))
+    } else {
+      cols <- Col2Hex(cols)
+    }
+    cols <- Interleave(cols, InvertHex(hexadecimal = cols))
+    names(x = cols) <- sort(x = levels(x = split))
+  }
+  if (same.y.lims && is.null(x = y.max)) {
+    y.max <- max(data)
+  }
+  plots <- lapply(
+    X = features,
+    FUN = function(x) {
+      return(SingleExIPlot(
+        type = type,
+        data = data[, x, drop = FALSE],
+        idents = idents,
+        split = split,
+        sort = sort,
+        y.max = y.max,
+        adjust = adjust,
+        cols = cols,
+        pt.size = pt.size,
+        log = log,
+        show.quantiles = show.quantiles,
+        quantiles = quantiles
+      ))
+    }
+  )
+  if (combine) {
+    combine.args <- list(
+      'plots' = plots,
+      'ncol' = ncol
+    )
+    combine.args <- c(combine.args, list(...))
+    if (!'legend' %in% names(x = combine.args)) {
+      combine.args$legend <- 'none'
+    }
+    plots <- do.call(what = 'CombinePlots', args = combine.args)
+  }
+  return(plots)
+}
+
+#' Single cell violin plot
+#'
+#' Draws a violin plot of single cell data (gene expression, metrics, PC
+#' scores, etc.)
+#'
+#' @inheritParams GCD.RidgePlot
+#' @param pt.size Point size for geom_violin
+#' @param split.by A variable to split the violin plots by,
+#' @param adjust Adjust parameter for geom_violin
+#'
+#' @return A ggplot object
+#'
+#' @export
+#'
+#'
+#' @examples
+#' VlnPlot(object = pbmc_small, features = 'PC1')
+#' VlnPlot(object = pbmc_small, features = 'LYZ', split.by = 'groups')
+#'
+GCD.VlnPlot <- function(
+  object,
+  features,
+  cols = NULL,
+  pt.size = 1,
+  idents = NULL,
+  sort = FALSE,
+  assay = NULL,
+  group.by = NULL,
+  split.by = NULL,
+  adjust = 1,
+  y.max = NULL,
+  same.y.lims = FALSE,
+  log = FALSE,
+  ncol = NULL,
+  combine = TRUE,
+  slot = 'data',
+  show.quantiles = T,
+  quantiles = 4,
+  ...
+) {
+  return(ExIPlot(
+    object = object,
+    type = 'violin',
+    features = features,
+    idents = idents,
+    ncol = ncol,
+    sort = sort,
+    assay = assay,
+    y.max = y.max,
+    same.y.lims = same.y.lims,
+    adjust = adjust,
+    pt.size = pt.size,
+    cols = cols,
+    group.by = group.by,
+    split.by = split.by,
+    log = log,
+    slot = slot,
+    combine = combine,
+    show.quantiles = show.quantiles,
+    quantiles = quantiles,
+    ...
+  ))
 }

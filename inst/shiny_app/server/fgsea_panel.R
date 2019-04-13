@@ -15,10 +15,12 @@ makeFGSEAPanel <- function(pathway.list.name, ident, only.pos) {
              if (only.pos) {
                results.dt <- filter(results.dt, ES > 0)
              }
-             results.dt <- mutate(results.dt, leadingEdge = lapply(leadingEdge, paste, collapse = ","))
+             results.dt <- mutate(results.dt, 
+                                  leadingEdge = lapply(leadingEdge, paste, collapse = ","))
    
-             return(datatable(dplyr::select(results.dt, -pval) %>%
-                                dplyr::arrange(padj),
+             return(datatable(
+               #dplyr::select(results.dt, -pval) %>%
+                                dplyr::arrange(results.dt, padj),
                               options = list(autoWidth = T, scrollX = T,
                                              columnDefs = list(
                                                list(targets = 1,
@@ -43,10 +45,10 @@ makeFGSEAPanel <- function(pathway.list.name, ident, only.pos) {
 }
 
 output$FGSEA <- renderUI({
-  req(DATA$orig.RET, BestMarkers(DATA$orig.RET))
+  req(DATA$orig.RET, GseaRes(DATA$orig.RET))
   
-  markers.list <- BestMarkers(DATA$orig.RET)
-  req(length(intersect(names(markers.list), levels(DATA$orig.RET@seurat))) >= 1)
+  markers.list <- GseaRes(DATA$orig.RET)$output
+  # req(length(intersect(names(markers.list), levels(DATA$orig.RET@seurat))) >= 1)
   
   do.call(tabBox,
           c(width = 12,
@@ -63,6 +65,48 @@ output$FGSEA <- renderUI({
                        
             )))
   
+})
+
+output$ENRICHR.PANEL <- renderUI({
+  fluidPage(
+    fluidRow(box(width = "100%",
+                 height = "auto",
+                 uiOutput("ENRICHR"))
+    ))
+})
+
+output$ENRICHR <- renderUI({
+  req(DATA$orig.RET, DATA$orig.RET@enrichr[[ActiveIdent(DATA$orig.RET)]])
+  enrichr.list <- DATA$orig.RET@enrichr[[ActiveIdent(DATA$orig.RET)]]
+  # markers.list <- GseaRes(DATA$orig.RET)$output
+  # req(length(intersect(names(markers.list), levels(DATA$orig.RET@seurat))) >= 1)
+  
+  do.call(tabBox,
+          c(width = 12,
+            height = "auto",
+            purrr::map(names(enrichr.list),
+                       function(ident) {
+                         tabPanel(title=ident,
+                                  do.call(tabBox,
+                                          c(width = 12,
+                                            height = "auto",
+                                            purrr::map(names(enrichr.list[[ident]]), 
+                                                       function(db.name) {
+                                                        tabPanel(title = db.name, 
+                                                                 renderDT({
+                                                                   datatable(enrichr.list[[ident]][[db.name]],
+                                                                             options = list(autoWidth = T, scrollX = T))
+                                                                 })
+                                                                 )
+                                                       }
+                                                      )
+                                          )
+                                  )
+                         )
+                                            
+                          }))
+  )
+
 })
 
 observeEvent(input$DO.FGSEA, {

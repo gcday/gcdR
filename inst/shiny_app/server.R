@@ -28,7 +28,7 @@ mydebug <- function(msg="[DEBUG]") {
 }
 
 
-server <- shinyServer(function( input, output, session){
+server <- shinyServer(function(input, output, session){
   DATA <- reactiveValues() 
   source(file.path("server", "de_markers.R"), local = TRUE)$value
   source(file.path("server", "fgsea_panel.R"), local = TRUE)$value
@@ -50,7 +50,7 @@ server <- shinyServer(function( input, output, session){
   
   output$DIM.REDUC.CHOICE <- renderUI({
     req(DATA$orig.RET)
-    radioButtons("DIM.REDUC", "Reduction",
+    radioGroupButtons("DIM.REDUC", "Reduction",
                  choices = DATA$orig.RET@meta.list$reductions, selected = DATA$orig.RET@meta.list$reductions[1])
   })
 })

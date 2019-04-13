@@ -42,49 +42,64 @@ output$DE.PANEL <- renderUI({
                  uiOutput("DE.MARKERS"))
     ))
 })
-makeDEMarkerPanel <- function(ident) {
-  markers.list <- BestMarkers(DATA$orig.RET)
+makeDEMarkerPanel <- function(ident, only.pos = F) {
+  markers.list <- BestMarkers(DATA$orig.RET, slot = input$SELECTED.DE.SLOT)
+  top_markers <- markers.list[[ident]]
+  if (only.pos) {
+    top_markers <- dplyr::filter(top_markers, 
+                                 avg_logFC > 0)
+  }
   tabPanel(title=ident,
            renderDT({
-             datatable(dplyr::filter(markers.list[[ident]], 
-                           avg_logFC > 0) %>% 
+             datatable(top_markers %>% 
                dplyr::arrange(p_val_adj, -avg_logFC) %>%
                dplyr::select(-p_val, -cluster) %>%
-               mutate(avg_logFC = round(avg_logFC, 2))) %>% 
+               mutate(avg_logFC = round(avg_logFC, 2)),
+               options = list(autoWidth = T, scrollX = T)) %>% 
                formatSignif(columns = c("p_val_adj", "avg_logFC"), digits = 3)
            }),
            #, height = "550px"), 
            # options = list(pageLength = 10, autoWidth = T)),
            renderPlot({
-             top_markers <- dplyr::filter(markers.list[[ident]], 
-                                          avg_logFC > 0) %>% 
-               dplyr::arrange(p_val_adj, -avg_logFC)
+             top_markers <- dplyr::filter(top_markers, 
+                                          avg_logFC > 0)
              if (nrow(top_markers) > 25) {
                markers <- top_markers$gene[1:25]
              } else {
                markers <- top_markers$gene
              }
              gcdDoHeatmap(DATA$orig.RET@seurat, 
-                          cells = WhichCells(DATA$orig.RET@seurat, downsample = 250),
+                          cells = WhichCells(DATA$orig.RET@seurat, downsample = input$DIFFEXP.HEATMAP.CELLS),
                           cols = Palettes(DATA$orig.RET, as.integer(input$COLOR.PALETTE)),
-                          features = markers, slot = "data")
+                          features = markers, slot = input$DATA.SLOT)
            }, height = 650, width = "auto")
   )
 }
-output$DE.MARKERS <- renderUI({
-  req(DATA$orig.RET,  isTruthy(BestMarkers(DATA$orig.RET)))
+
+
+output$DE.MARKERS.SLOT <- renderUI({
+  req(DATA$orig.RET, ActiveMarkers(DATA$orig.RET))
   
-  markers.list <- BestMarkers(DATA$orig.RET)
+  marker.slots <- ActiveMarkers(DATA$orig.RET)
+  selectInput("SELECTED.DE.SLOT", 
+              "Marker slots", marker.slots, multiple = F,
+              selectize = T, selected = BestMarkers(DATA$orig.RET))
+})
+
+output$DE.MARKERS <- renderUI({
+  
+  req(DATA$orig.RET,  isTruthy(BestMarkers(DATA$orig.RET)), input$SELECTED.DE.SLOT)
+  
+  markers.list <- BestMarkers(DATA$orig.RET, slot = input$SELECTED.DE.SLOT)
   # req(length(intersect(names(markers.list), levels(DATA$orig.RET@seurat))) >= 1)
   
   do.call(tabBox,
           c(width = 12,
             height = "auto",
             purrr::map(names(markers.list),
-                       makeDEMarkerPanel
-                       ))
+                       makeDEMarkerPanel,
+                       only.pos = input$DE.ONLY.POS
+                       )
+          )
   )
 })
-
-
-

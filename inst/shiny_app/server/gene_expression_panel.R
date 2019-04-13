@@ -1,11 +1,8 @@
 doPlotsSingleGene <- function(gene, vln.width = "auto", vln.height = 400,
                               feat.width = "auto", feat.height = 500,
                               table.height = "200px") {
-  if (input$GENE.VIOLIN.SHOW) {
-    pt.size <- 1
-  } else {
-    pt.size <- 0
-  }
+  pt.size <- ifelse(input$VIOLIN.SHOW.DOTS, 1, 0)
+
   tabPanel(title = gene,
            fluidRow(
              box(
@@ -13,7 +10,7 @@ doPlotsSingleGene <- function(gene, vln.width = "auto", vln.height = 400,
                renderPlot({
                  VlnPlot(DATA$RET@seurat, features = c(gene),
                          cols = Palettes(DATA$orig.RET, as.integer(input$COLOR.PALETTE)), 
-                         pt.size = pt.size) + NoLegend()
+                         pt.size = pt.size, slot = input$DATA.SLOT) + NoLegend()
                }, width = vln.width, height = vln.height),
                style=paste0("padding-top:", (feat.height - vln.height ) / 2 ,"px;")
              ),
@@ -23,6 +20,17 @@ doPlotsSingleGene <- function(gene, vln.width = "auto", vln.height = 400,
                  FeaturePlot(DATA$RET@seurat, features = c(gene),
                              reduction = input$DIM.REDUC)
                }, width=feat.width, height=feat.height)
+             )
+           ),
+           fluidRow(
+             box(
+               width = 8, status = "primary",
+               renderPlot({
+                 RidgePlot(DATA$RET@seurat, features = c(gene),
+                         cols = Palettes(DATA$orig.RET, as.integer(input$COLOR.PALETTE)), 
+                         slot = input$DATA.SLOT) + NoLegend()
+               }, width = vln.width, height = vln.height),
+               style=paste0("padding-top:", (feat.height - vln.height ) / 2 ,"px;")
              )
            ),
            fluidRow(
@@ -36,6 +44,7 @@ doPlotsSingleGene <- function(gene, vln.width = "auto", vln.height = 400,
                  )
              )
            )
+           
   )
 }
 
@@ -45,6 +54,15 @@ output$GENE.PLOTS <- renderUI({
           c(purrr::map(input$GENE, doPlotsSingleGene),
             width = 12, height = "auto"))
 })
+# 
+# observeEvent(input$GENE, {
+#   print(input$GENE)
+#   for (gene in input$GENE) {
+#     print(gene)
+#     output[[paste0("gene_expr_tab_", gene)]] <- renderUI({doPlotsSingleGene(gene)})
+#   }
+# })
+# 
 
 
 
@@ -52,7 +70,7 @@ output$GENE.PLOTS <- renderUI({
 
 
 geneSummaryTable <- function(gene) {
-  EXPR.VALS <- FetchData(DATA$RET@seurat, vars = c(gene))[[gene]]
+  EXPR.VALS <- FetchData(DATA$RET@seurat, vars = c(gene), slot = input$DATA.SLOT)[[gene]]
   GROUP.NAMES <- levels(Idents(DATA$RET@seurat))
   IDENTS <- Idents(DATA$RET@seurat)
   CELL.COUNTS <- table( IDENTS )

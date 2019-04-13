@@ -5,7 +5,7 @@
 \title{Wrapper function to perform clustering and run TSNE on a Seurat object}
 \usage{
 seuratClusterWrapper(RET, dims = NULL, resolution = 0.5, do.TSNE = T,
-  do.UMAP = T)
+  do.UMAP = T, do.tree = T)
 }
 \arguments{
 \item{RET}{list containing Seurat object and plots}

@@ -66,12 +66,41 @@ observeEvent(input$CHANGE.GRP.NAME, {
 observeEvent(input$ok.grp.rename, {
   req(input$NEW.GRPS.NAME)
   if (length(input$GRPS.TO.RENAME) >= 1) {
-    print("doing it")
+    print("renaming")
     DATA$orig.RET <- gcdRenameIdent(DATA$orig.RET, input$GRPS.TO.RENAME, input$NEW.GRPS.NAME)
     print(levels(DATA$orig.RET@seurat))
     DATA$RET <- DATA$orig.RET
     removeModal()
   } else {
     showModal(newGroupNameModal(failed = TRUE))
+  }
+})
+
+output$rename.panel <- renderUI({
+  req(DATA$orig.RET)
+  return(div(
+             do.call(div, c(style = 'overflow-y: scroll; height: 500px;',
+    purrr::map(1:length(levels(DATA$orig.RET@seurat)),
+                            function (i) {
+                              ident <- levels(DATA$orig.RET@seurat)[i]
+                              return(textInput(paste0("dynamicInputRename_", i), width = "60%", label = ident, value = ident))
+                            }
+          ))),
+  actionButton("ok.multi.rename", "Save")
+  ))
+  # actionButton(ok.multi.rename
+})
+
+
+observeEvent(input$ok.multi.rename, {
+  new.namelist <- list()
+  for (i in 1:length(levels(DATA$orig.RET@seurat))) {
+    new.namelist[i] <- input[[paste0("dynamicInputRename_", i)]]
+  }
+  if (length(new.namelist) == length(unique(new.namelist))) {
+    print("Okay new group names")
+    print(c(unlist(new.namelist)))
+    DATA$orig.RET <- renameAllIdents(DATA$orig.RET, c(unlist(new.namelist)))
+    DATA$RET <- DATA$orig.RET
   }
 })

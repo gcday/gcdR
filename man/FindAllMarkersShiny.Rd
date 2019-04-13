@@ -11,7 +11,7 @@ FindAllMarkersShiny(object, assay = NULL, features = NULL,
   only.pos = FALSE, max.cells.per.ident = Inf, random.seed = 1,
   latent.vars = NULL, min.cells.feature = 3, min.cells.group = 3,
   pseudocount.use = 1, return.thresh = 0.01, idents.use = NULL,
-  shiny = FALSE, ...)
+  shiny = FALSE, metadata.add = NULL, ...)
 }
 \arguments{
 \item{node}{A node to find markers for and all its children; requires

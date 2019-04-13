@@ -4,7 +4,7 @@
 \alias{gcdRunUMAP}
 \title{Reads Seurat/gcdSeurat object and converts it to updated gcdSeurat}
 \usage{
-gcdRunUMAP(RET, shiny = TRUE)
+gcdRunUMAP(RET, shiny = TRUE, check.tree = T)
 }
 \arguments{
 \item{RET}{gcdSeurat object}

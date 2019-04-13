@@ -14,7 +14,6 @@ reclusterModal <- function(failed = FALSE) {
 
 observeEvent(input$OK.RECLUSTER, {
   if (input$RECLUSTER.RES) {
-    
     withProgress(message = 'Clustering', value = 0, {
       DATA$orig.RET <- seuratClusterWrapper(DATA$orig.RET, resolution = input$RECLUSTER.RES, dims = DATA$orig.RET@meta.list$dims)
     })
@@ -39,3 +38,5 @@ observeEvent(input$RECLUSTER, {
     showModal(reclusterModal())
   }
 })
+
+

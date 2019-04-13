@@ -47,6 +47,7 @@ FindAllMarkersShiny <- function(
   return.thresh = 1e-2,
   idents.use = NULL,
   shiny = FALSE,
+  metadata.add = NULL,
   ...
 ) {
   MapVals <- function(vec, from, to) {
@@ -94,7 +95,7 @@ FindAllMarkersShiny <- function(
     }
     genes.de[[i]] <- tryCatch(
       expr = {
-        FindMarkers(
+        FindMarkers.Seurat_GCD(
           object = object,
           assay = assay,
           ident.1 = if (is.null(x = node)) {
@@ -120,6 +121,7 @@ FindAllMarkersShiny <- function(
           min.cells.feature = min.cells.feature,
           min.cells.group = min.cells.group,
           pseudocount.use = pseudocount.use,
+          metadata.add = metadata.add,
           ...
         )
       },
@@ -246,32 +248,55 @@ seuratMarkersBetweenConditions <- function(SRT, cond.var, cond.1, cond.2) {
 #' seuratAllMarkers(RET)
 #'
 #' @export
-seuratAllMarkers <- function(RET, do.fast = TRUE, do.full = FALSE, fast.threshold = 0.25, shiny = F, idents.use = NULL) {
+seuratAllMarkers <- function(RET, 
+                             do.fast = TRUE, 
+                             do.full = FALSE, 
+                             fast.threshold = 0.25, 
+                             shiny = F, 
+                             idents.use = NULL) {
   require(Seurat)
   if (do.fast) {
     message("Calculating fast markers...")
     # RET@markers[[RET@meta.list$active.ident]]
     RET <- setMarkersByCluster(RET, "quick", 
-      FindAllMarkersShiny(RET@seurat, logfc.threshold = fast.threshold, shiny = shiny, idents.use = idents.use))
-    # if (shiny) {
-    #   RET@markers$quick[[ActiveIdent(RET)]] <- FindAllMarkersShiny(RET@seurat, logfc.threshold = fast.threshold)
-    # } else {
-    #   RET@markers$quick[[ActiveIdent(RET)]] <- FindAllMarkers(RET@seurat, logfc.threshold = fast.threshold)
-    
+      FindAllMarkersShiny(RET@seurat, logfc.threshold = fast.threshold, shiny = shiny, idents.use = idents.use), idents.use = idents.use)
   }
   if (do.full) {
     message("Calculating full markers...")
     RET <- setMarkersByCluster(RET, "full", 
-      FindAllMarkersShiny(RET@seurat, logfc.threshold = 0.05, shiny = shiny, idents.use = idents.use))
-    # if (shiny) {
-    #   RET@markers$full[[ActiveIdent(RET)]] <- FindAllMarkersShiny(RET@seurat, logfc.threshold = 0.05)
-    # } else {
-    #   RET@markers$full[[ActiveIdent(RET)]] <- FindAllMarkers(RET@seurat, logfc.threshold = 0.05)
-    # }
-    # RET@markers$all.markers.full <- FindAllMarkers(RET@seurat, logfc.threshold = 0.05)
+      FindAllMarkersShiny(RET@seurat, logfc.threshold = 0.05, shiny = shiny, idents.use = idents.use), idents.use = idents.use)
   }
   return(RET)
 }
+#' Wrapper function to find module markers between clusters for a Seurat object
+#'
+#'
+#' @param RET list containing Seurat object and plots
+#' @param do.fast whether fast markers should be computed (default: True)
+#' @param do.full whether full markers should be computed (default: True)
+#' @param fast.threshold whether full markers should be computed (default: True)
+#' @return gcdSeurat
+#'
+#' @examples
+#' seuratModuleMarkers(RET)
+#'
+#' @export
+seuratModuleMarkers <- function(RET, modules.use = NULL, 
+                                markers.name = "modules",
+                                idents.use = NULL, shiny = F,
+                                logfc.threshold = 0.05) {
+  modules.use <- modules.use %||% names(RET@meta.list$modules)
+  
+  RET <- setMarkersByCluster(RET, markers.name, 
+                             FindAllMarkersShiny(RET@seurat, 
+                                                 logfc.threshold = lofgc.threshold, 
+                                                 metadata.add = modules.use,
+                                                 features = modules.use,
+                                                 min.pct = 0,
+                                                 shiny = shiny, 
+                                                 idents.use = idents.use), idents.use = idents.use)
+}
+                                
 
 #' Adds markers to cluster list 
 #'
@@ -284,8 +309,11 @@ seuratAllMarkers <- function(RET, do.fast = TRUE, do.full = FALSE, fast.threshol
 #' setMarkersByCluster(RET, markers.type, markers)
 #'
 #' @export
-setMarkersByCluster <- function(RET, markers.type, markers) {
+setMarkersByCluster <- function(RET, markers.type, markers, idents.use) {
   ident.name <- ActiveIdent(RET)
+  if (is.null(idents.use)) {
+    idents.use <- levels(RET@seurat)
+  }
   if (! markers.type %in% names(RET@markers)) {
     RET@markers[[markers.type]] <- list()
   } 
@@ -298,12 +326,154 @@ setMarkersByCluster <- function(RET, markers.type, markers) {
       RET@markers[[markers.type]][[ident.name]] <- list()
   } 
   # message(names(RET@markers[[markers.type]][[ident.name]]))
-  for (ident in levels(markers$cluster)) {
+  for (ident in idents.use) {
     # message("Ident ", ident)
     ident.markers <- dplyr::filter(markers, cluster == ident)
-    if (nrow(ident.markers) != 0) {
-      RET@markers[[markers.type]][[ident.name]][[ident]] <- ident.markers
-    }
+    # if (nrow(ident.markers) != 0) {
+    RET@markers[[markers.type]][[ident.name]][[ident]] <- ident.markers
+    # } else {
+      # RET@markers[[markers.type]][[ident.name]][[ident]] <- list()
+    
   }
   return(RET)
+}
+
+#' FindMarkers
+#' @param ident.1 Identity class to define markers for; pass an object of class
+#' \code{phylo} or 'clustertree' to find markers for a node in a cluster tree;
+#' passing 'clustertree' requires \code{\link{BuildClusterTree}} to have been run
+#' @param ident.2 A second identity class for comparison; if \code{NULL},
+#' use all other cells for comparison; if an object of class \code{phylo} or
+#' 'clustertree' is passed to \code{ident.1}, must pass a node to find markers for
+#' @param assay Assay to use in differential expression testing
+#' @param reduction Reduction to use in differential expression testing - will test for DE on cell embeddings
+#' @param group.by Regroup cells into a different identity class prior to performing differential expression (see example)
+#' @param subset.ident Subset a particular identity class prior to regrouping. Only relevant if group.by is set (see example)
+#'
+#' @importFrom methods is
+#'
+#' @export
+#'
+#'
+# `@method FindMarkers_GCD Seurat
+
+FindMarkers.Seurat_GCD <- function(
+  object,
+  ident.1 = NULL,
+  ident.2 = NULL,
+  group.by = NULL,
+  subset.ident = NULL,
+  assay = NULL,
+  reduction = NULL, 
+  features = NULL,
+  logfc.threshold = 0.25,
+  test.use = "wilcox",
+  min.pct = 0.1,
+  min.diff.pct = -Inf,
+  verbose = TRUE,
+  only.pos = FALSE,
+  max.cells.per.ident = Inf,
+  random.seed = 1,
+  latent.vars = NULL,
+  min.cells.feature = 3,
+  min.cells.group = 3,
+  pseudocount.use = 1,
+  metadata.add = NULL,
+  ...
+) {
+  if (!is.null(x = group.by)) {
+    if (!is.null(x = subset.ident)) {
+      object <- subset(x = object, idents = subset.ident)
+    }
+    Idents(object = object) <- group.by
+  }
+  if (!is.null(x = assay) & !is.null(x = reduction)) {
+    stop("Please only specify either assay or reduction.")
+  }
+  data.slot <- ifelse(
+    test = test.use %in% c("negbinom", "poisson", "DESeq2"),
+    yes = 'counts',
+    no = 'data'
+  )
+  if (is.null(x = reduction)) {
+    assay <- assay %||% DefaultAssay(object = object)
+    data.use <-  GetAssayData(object = object[[assay]], slot = data.slot)
+  } else {
+    if (data.slot == "counts") {
+      stop("The following tests cannot be used when specifying a reduction as they assume a count model: negbinom, poisson, DESeq2")
+    }
+    data.use <- t(x = Embeddings(object = object, reduction = reduction))
+  }
+  if (!is.null(metadata.add)) {
+    message("Adding vars")
+    metadata.vals <- FetchData(object, vars = metadata.add)
+    data.use <- rbind(data.use, t(metadata.vals))
+  }
+  if (is.null(x = ident.1)) {
+    stop("Please provide ident.1")
+  } else if (ident.1 == 'clustertree' || is(object = ident.1, class2 = 'phylo')) {
+    if (is.null(x = ident.2)) {
+      stop("Please pass a node to 'ident.2' to run FindMarkers on a tree")
+    }
+    tree <- if (is(object = ident.1, class2 = 'phylo')) {
+      ident.1
+    } else {
+      Tool(object = object, slot = 'BuildClusterTree')
+    }
+    if (is.null(x = tree)) {
+      stop("Please run 'BuildClusterTree' or pass an object of class 'phylo' as 'ident.1'")
+    }
+    ident.1 <- tree$tip.label[GetLeftDescendants(tree = tree, node = ident.2)]
+    ident.2 <- tree$tip.label[GetRightDescendants(tree = tree, node = ident.2)]
+  }
+  if (length(x = as.vector(x = ident.1)) > 1 &&
+      any(as.character(x = ident.1) %in% colnames(x = data.use))) {
+    bad.cells <- colnames(x = data.use)[which(x = !as.character(x = ident.1) %in% colnames(x = data.use))]
+    if (length(x = bad.cells) > 0) {
+      stop(paste0("The following cell names provided to ident.1 are not present in the object: ", paste(bad.cells, collapse = ", ")))
+    }
+  } else {
+    ident.1 <- WhichCells(object = object, idents = ident.1)
+  }
+  # if NULL for ident.2, use all other cells
+  if (length(x = as.vector(x = ident.2)) > 1 &&
+      any(as.character(x = ident.2) %in% colnames(x = data.use))) {
+    bad.cells <- colnames(x = data.use)[which(!as.character(x = ident.2) %in% colnames(x = data.use))]
+    if (length(x = bad.cells) > 0) {
+      stop(paste0("The following cell names provided to ident.2 are not present in the object: ", paste(bad.cells, collapse = ", ")))
+    }
+  } else {
+    if (is.null(x = ident.2)) {
+      ident.2 <- setdiff(x = colnames(x = data.use), y = ident.1)
+    } else {
+      ident.2 <- WhichCells(object = object, idents = ident.2)
+    }
+  }
+  if (!is.null(x = latent.vars)) {
+    latent.vars <- FetchData(
+      object = object,
+      vars = latent.vars,
+      cells = c(ident.1, ident.2)
+    )
+  }
+  de.results <- FindMarkers(
+    object = data.use,
+    cells.1 = ident.1,
+    cells.2 = ident.2,
+    features = features,
+    logfc.threshold = logfc.threshold,
+    test.use = test.use,
+    min.pct = min.pct,
+    min.diff.pct = min.diff.pct,
+    verbose = verbose,
+    only.pos = only.pos,
+    max.cells.per.ident = max.cells.per.ident,
+    random.seed = random.seed,
+    latent.vars = latent.vars,
+    min.cells.feature = min.cells.feature,
+    min.cells.group = min.cells.group,
+    pseudocount.use = pseudocount.use,
+    ...
+  )
+  return(de.results)
 }

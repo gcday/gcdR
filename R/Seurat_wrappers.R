@@ -148,9 +148,9 @@ seuratFilterWrapper <- function(SRT, min.genes = 200, max.genes = 5000, min.UMI 
   }  
   SRT <- subset(SRT, cells = cells.keep)
 	INFO$qc$passing.filters <- ncol(SRT)
-  RET$plots$post.mito.UMI.filtering <-  VlnPlot(object = SRT, pt.size = 0,
-                                           features = c("nGene", "nUMI", "percent.mito"),
-                                           ncol = 3) + ggplot2::ggtitle("After mito/UMI filtering")
+  # RET$plots$post.mito.UMI.filtering <-  VlnPlot(object = SRT, pt.size = 0,
+  #                                          features = c("nGene", "nUMI", "percent.mito"),
+  #                                          ncol = 3) + ggplot2::ggtitle("After mito/UMI filtering")
   # p <-  FeatureScatter(object = SRT, feature1 = "nUMI", feature2 = "percent.mito")
   # p <- p + ggplot2::labs(title = "After mito/UMI filtering", subtitle = p$labels$title) 
   # RET$plots$post.filter.UMI.mito <- p
@@ -218,7 +218,10 @@ gcdPrintSeuratQC <- function(RET) {
 #' seuratVariableWrapper(RET)
 #'
 #' @export
-seuratVariableWrapper <- function(RET, nfeatures = 2500, vars.to.regress = NULL) {
+seuratVariableWrapper <- function(RET, nfeatures = 2500, vars.to.regress = NULL, do.normalize = F) {
+  if (do.normalize) {
+    RET@seurat <- NormalizeData(RET@seurat, normalization.method = "LogNormalize", scale.factor = 10000)
+  }
 	RET@seurat <- FindVariableFeatures(object = RET@seurat, selection.method = "vst", nfeatures = nfeatures)
   # RET@plots[["variable.genes"]] <- VariableFeaturePlot(object = RET@seurat)
   RET@seurat <- ScaleData(RET@seurat, vars.to.regress = vars.to.regress)
@@ -262,7 +265,7 @@ seuratPCAWrapper <- function(RET, do.jackstraw = FALSE, pcs.compute = 30) {
 #' seuratClusterWrapper(RET)
 #'
 #' @export
-seuratClusterWrapper <- function(RET, dims = NULL, resolution = 0.50, do.TSNE = T, do.UMAP = T) {
+seuratClusterWrapper <- function(RET, dims = NULL, resolution = 0.50, do.TSNE = T, do.UMAP = T, do.tree = T) {
   require(Seurat)
   if (is.null(dims)) {
     if (!is.null(RET@meta.list$dims)) {
@@ -283,7 +286,33 @@ seuratClusterWrapper <- function(RET, dims = NULL, resolution = 0.50, do.TSNE = 
   if (do.UMAP) {
     RET@seurat <- RunUMAP(RET@seurat, dims = dims)
     # RET@plots[["UMAP"]] <- DimPlot(RET@seurat, label = T, reduction = "umap", repel = T)
+  } 
+  if (do.tree) {
+    RET@seurat <- BuildClusterTree(RET@seurat, dims = RET@meta.list$dims)
   }
+  return(RET)
+}
+ 
+#' Subsets a gcdSeurat object
+#'
+#'
+#' @param RET list containing Seurat object and plots
+#' @param cells cells to subset
+#'
+#' @return subsetted gcdSeurat
+#'
+#' @examples
+#' gcdSubsetSeurat(RET)
+#'
+#' @export
+gcdSubsetSeurat <- function(RET, ...) {
+  RET@seurat <- subset(RET@seurat, ...)
+  RET@markers <- list()
+  RET@fgsea <- list()
+  if (!is.null(Tool(RET@seurat, slot = "BuildClusterTree"))) {
+    Tool(RET@seurat, slot = "BuildClusterTree") <- NULL
+  }
+  RET@seurat <- NormalizeData(RET@seurat)
   return(RET)
 }
 

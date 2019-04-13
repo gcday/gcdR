@@ -9,17 +9,26 @@
 #' seuratDEresToGSEARanks(de.table)
 #'
 #' @export
-seuratDEresToGSEARanks <- function(de.table) {
+seuratDEresToGSEARanks <- function(de.table, p_thresh = 1E-50, logfc_thresh = 0.25) {
   # de.markers <- de.table
   de.markers <- mutate(de.table, p_val = ifelse(p_val == 0, 1E-300, p_val))
+  de.markers <- filter(de.markers, p_val < p_thresh)
+  de.markers <- filter(de.markers, abs(avg_logFC) > logfc_thresh)
+  
+  # de.markers <- arrange
   # de.markers <- filter(de.markers, p_val < 0.01)
   # de.markers[!(is.na(de.markers$p_val)) & de.markers$p_val == 0,]$p_val <- 
-  # de.markers <- de.markers[!duplicated(de.markers$gene),]
-  de.markers <- mutate(de.markers, sign = ifelse(abs(avg_logFC) > 0.15, avg_logFC, pct.1 - pct.2))
-  de.markers <- mutate(de.markers, rank_metric = -log10(p_val) * sign)
+  # # de.markers <- de.markers[!duplicated(de.markers$gene),]
+  # 
+  # de.markers <- mutate(de.markers, sign = ifelse(abs(avg_logFC) > 0.15, avg_logFC, pct.1 - pct.2))
+  # de.markers <- mutate(de.markers, rank_metric = -log10(p_val) * sign)
+  de.markers <- mutate(de.markers, rank_metric = avg_logFC)
+  
+  # 
   # de.markers <- mutate(de.markers, rank_metric = -log10(p_val) * sign(avg_logFC))
   # de.markers$round_metric <- round(de.markers$rank_metric, 2)
   de.markers <- de.markers[!duplicated(de.markers$rank_metric),]
+  de.markers <- de.markers[!is.infinite(de.markers$rank_metric),]
   de.markers <- de.markers[!duplicated(de.markers$gene),]
   
   ranks <- data.frame(de.markers$rank_metric)
@@ -96,7 +105,7 @@ checkFGSEARanks <- function(RET, idents.to.use = NULL, overwrite = F) {
 #' @param mouse whether to convert gene names prior to fgsea
 #' @return list containing ranks and fgsea output for each ident
 #'
-#' @importFrom fgsea fgseaMultilevel
+#' @importFrom fgsea fgseaMultilevel fgsea
 #'
 #' @examples
 #' fgseaWrapper(RET, pathways.list)
@@ -119,7 +128,6 @@ fgseaWrapper <- function(RET, pathways.list,
     RET@fgsea$pathways[[path.name]] <- pathways
     RET@fgsea$prefixes[[path.name]] <- ifelse(is.null(prefixes), "", prefixes[i])
     for (ident in idents.to.use) {
-      
       if (shiny) {
         incProgress(1/(length(idents.to.use) * length(pathways.list)),
                     detail = paste0("Calculating cluster ", ident))
@@ -440,3 +448,39 @@ correlateFgseaLeadingEdges <- function(RET, pval.thresh = 0.001, path.dbs.to.che
   # RET <- correlateVars(RET, c(names(leading.edges)))
   return(RET)
 }
+
+#' Runs DE genes through enrichR
+#'
+#'
+#' @param RET gcdSeurat
+#' @param path.dbs.to.check if given, limit plotting to only these pathway sets
+#' @param pval.thresh threshold p-val for inclusion in DE gene list
+#' @param logfc.thresh threshold logfc-val for inclusion in DE gene list
+#'
+#' @return list containing ranks and fgsea output for each ident
+#'
+#' @examples
+#' correlateFgseaLeadingEdges(RET, pval.thresh)
+#' 
+#' @importFrom enrichR enrichr
+#'
+#' @export
+runEnrichrOnDEGenes <- function(RET, 
+                                path.dbs.to.check, 
+                                pval.thresh = 1E-50, 
+                                logfc.thresh = 0,
+                                idents.to.use = NULL) {
+  # RET@enrichr <- list()
+  if (is.null(idents.to.use)) idents.to.use <- names(BestMarkers(RET))
+  
+  if (!ActiveIdent(RET) %in% names(RET@enrichr)) RET@enrichr[[ActiveIdent(RET)]] <- list()
+  markers <- BestMarkers(RET)
+  
+  for (cluster in idents.to.use) {
+    genes <- filter(markers[[cluster]], p_val < pval.thresh, avg_logFC > logfc.thresh)$gene
+    RET@enrichr[[ActiveIdent(RET)]][[cluster]] <- enrichr(genes, path.dbs.to.check)
+  }
+  return(RET)
+}
+
+

@@ -4,7 +4,8 @@
 \alias{seuratDEresToGSEARanks}
 \title{Convers Seurat marker output to DE gene ranks}
 \usage{
-seuratDEresToGSEARanks(de.table)
+seuratDEresToGSEARanks(de.table, p_thresh = 1.00000000000000e-50,
+  logfc_thresh = 0.25)
 }
 \arguments{
 \item{de.table}{DE genes table, returned by \code{\link[Seurat]{FindAllMarkers}}}

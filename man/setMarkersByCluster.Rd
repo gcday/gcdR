@@ -4,7 +4,7 @@
 \alias{setMarkersByCluster}
 \title{Adds markers to cluster list}
 \usage{
-setMarkersByCluster(RET, markers.type, markers)
+setMarkersByCluster(RET, markers.type, markers, idents.use)
 }
 \arguments{
 \item{RET}{gcdSeurat}

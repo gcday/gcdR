@@ -4,7 +4,8 @@
 \alias{breakdownTable}
 \title{Summarizes 2 variables}
 \usage{
-breakdownTable(var.1, var.2, transpose = F, do.percent = F)
+breakdownTable(var.1, var.2, transpose = F, do.percent = T,
+  do.format = T)
 }
 \arguments{
 \item{var.1}{first list of values with length n}
@@ -14,6 +15,8 @@ breakdownTable(var.1, var.2, transpose = F, do.percent = F)
 \item{transpose}{whether to flip results}
 
 \item{do.percent}{whether to use percent or raw counts (default)}
+
+\item{do.format}{whether to return percent-formatted strings or numeric}
 }
 \description{
 Summarizes 2 variables

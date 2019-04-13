@@ -18,7 +18,8 @@ setClass("gcdSeurat",
            plots = "list",
            info = "list",
            markers = "list",
-           fgsea = "list"
+           fgsea = "list",
+           enrichr = "list"
          )
 )
 
@@ -91,6 +92,7 @@ gcdUpdateSeurat <- function(RET = NULL, SRT = NULL, shiny = TRUE) {
   return(RET)
 }
 
+
 #' Reads Seurat/gcdSeurat object and converts it to updated gcdSeurat
 #'
 #'
@@ -99,7 +101,7 @@ gcdUpdateSeurat <- function(RET = NULL, SRT = NULL, shiny = TRUE) {
 #'
 #' @export
 #'
-gcdRunUMAP <- function(RET, shiny = TRUE) {
+gcdRunUMAP <- function(RET, shiny = TRUE, check.tree = T) {
   
   UMAP.present <- T
   if (shiny) incProgress(amount = 0.3, message = "Checking for UMAP...")
@@ -120,7 +122,13 @@ gcdRunUMAP <- function(RET, shiny = TRUE) {
   } else {
     RET$meta.list$reductions <- list(`t-SNE` = "tsne")
   }
-  if (shiny) incProgress(amount = 0.2, message = "Building cluster tree...")
+  if (check.tree) {
+    if (is.null(Tool(RET@seurat, slot = "BuildClusterTree"))) {
+      if (shiny) incProgress(amount = 0.2, message = "Building cluster tree...")
+      RET@seurat <- BuildClusterTree(RET@seurat, dims = RET@meta.list$dims)
+    }
+  }
+ 
   # RET@seurat <- BuildClusterTree(RET@seurat, dims = dims)
   return(RET)
 }
@@ -137,21 +145,26 @@ gcdRunUMAP <- function(RET, shiny = TRUE) {
 #'
 #' @export
 renameAllIdents <- function(RET, new.idents) {
-  levels(Idents(RET@seurat)) <- new.idents
-  if ("fgsea" %in% names(RET@meta.list)) {
-    names(RET@meta.list$fgsea$ranks) <- new.idents
-    for (pathway in names(RET@meta.list$fgsea$results)) {
-      names(RET@meta.list$fgsea$results[[pathway]]) <- new.idents
+  for (i in 1:length(new.idents)) {
+    if (levels(Idents(RET@seurat))[i] != new.idents[i]) {
+      RET <- gcdRenameIdent(RET, levels(Idents(RET@seurat))[i], new.idents[i])
     }
   }
-  if (RET@meta.list$active.ident %in% names(RET@markers$quick)) {
-    levels(RET@markers$quick[[RET@meta.list$active.ident]]) <- new.idents
-  }
-  if (RET@meta.list$active.ident %in% names(RET@markers$full)) {
-    levels(RET@markers$full[[RET@meta.list$active.ident]]) <- new.idents
-  }
-  # RET@plots$UMAP <- DimPlot(RET@seurat, label = T, reduction = "umap")
   return(RET)
+  # levels(Idents(RET@seurat)) <- new.idents
+  # if ("fgsea" %in% names(RET@meta.list)) {
+  #   names(RET@meta.list$fgsea$ranks) <- new.idents
+  #   for (pathway in names(RET@meta.list$fgsea$results)) {
+  #     names(RET@meta.list$fgsea$results[[pathway]]) <- new.idents
+  #   }
+  # }
+  # if (RET@meta.list$active.ident %in% names(RET@markers$quick)) {
+  #   levels(RET@markers$quick[[RET@meta.list$active.ident]]) <- new.idents
+  # }
+  # if (RET@meta.list$active.ident %in% names(RET@markers$full)) {
+  #   levels(RET@markers$full[[RET@meta.list$active.ident]]) <- new.idents
+  # }
+  # RET@plots$UMAP <- DimPlot(RET@seurat, label = T, reduction = "umap")
 }
 
 #' Renames selected groups of cells in a Seurat object
@@ -169,6 +182,9 @@ renameAllIdents <- function(RET, new.idents) {
 gcdRenameIdent <- function(RET, ident.to.rename, new.label) {
   levels(RET@seurat)[levels(RET@seurat) == ident.to.rename] <- new.label
   active.ident <- suppressWarnings(ActiveIdent(RET))
+  RET@seurat[[active.ident]][[active.ident]] <- Idents(RET@seurat)
+  # levels(RET@seurat[[ActiveIdent(RET)]][[ActiveIdent(RET)]])[levels(RET@seurat[[ActiveIdent(RET)]][[ActiveIdent(RET)]]) == ident.to.rename] <- new.label
+  
   # cluster.tree <- Tool(RET@seurat, slot = "BuildClusterTree")
   if (!is.null(Tool(RET@seurat, slot = "BuildClusterTree"))) {
     RET@seurat@tools$BuildClusterTree$tip.label[RET@seurat@tools$BuildClusterTree$tip.label == ident.to.rename] <- new.label
@@ -181,10 +197,6 @@ gcdRenameIdent <- function(RET, ident.to.rename, new.label) {
       # RET@markers[[marker.names]][[active.ident]]
       names(RET@markers[[marker.names]][[active.ident]])[names(RET@markers[[marker.names]][[active.ident]]) == ident.to.rename] <- new.label
     }
-    # for (ident.name in names(RET@markers[[marker.names]])) {
-      # levels(RET@markers[[marker.names]][[ident.name]]$cluster)[levels(RET@markers[[marker.names]][[ident.name]]$cluster) %in% c(idents.to.rename)] <- new.label
-    # }
-    # levels(RET@markers[[marker.names]]$cluster)[levels(RET@markers[[marker.names]]$cluster) %in% c(idents.to.rename)] <- new.label
   }
   if ("results" %in% names(RET@fgsea)) {
     if (active.ident %in% names(RET@fgsea$results)) {
@@ -204,9 +216,9 @@ gcdRenameIdent <- function(RET, ident.to.rename, new.label) {
 CellGroups.gcdSeurat <- function(object, ...) {
     meta.data <- slot(slot(object = object, name = "seurat"), name = "meta.data")
         
-    metadata.counts <- apply(meta.data, 2, function(x) length(table(x)))
-    ident.choices <- colnames(meta.data)[metadata.counts<=100]
-    return(ident.choices)
+    # metadata.counts <- apply(meta.data, 2, function(x) length(table(x)))
+    # ident.choices <- colnames(meta.data)[metadata.counts<=100]
+    return(colnames(meta.data)[!sapply(meta.data, is.numeric)])
     # for (choice in SRTmeta.data)
       # RET@meta.list$ident.choices) {
     # if(isTRUE(all.equal(as.character(Idents(RET@seurat)),
@@ -363,43 +375,71 @@ tryOverwriteIdent <- function(RET, OVERWRITE.IDENT) {
   for (marker.type in names(RET@markers)) {
     if (ActiveIdent(RET) %in% names(RET@markers[[marker.type]])) {
       RET@markers[[marker.type]][[OVERWRITE.IDENT]] <- RET@markers[[marker.type]][[ActiveIdent(RET)]]
-      names(RET@markers[[marker.type]][[OVERWRITE.IDENT]]) <- levels(Idents(RET@seurat))
+      # names(RET@markers[[marker.type]][[OVERWRITE.IDENT]]) <- levels(Idents(RET@seurat))
       }
   }
   return(RET)
 }
 
 
+#' Finds best markers available for current idents.
+#'
+#' @param RET gcdSeurat object
+#' @return markers slots containing entries matching ActiveIdent(RET)
+#' 
+#' @method ActiveMarkers gcdSeurat
+#' @export
+#' 
+ActiveMarkers.gcdSeurat <- function(object, verbose = F, ...) {
+  active.ident <- ActiveIdent(object)
+  # Taking the set of markers with the most total genes observed 
+  valid.choices <- NULL
+  for (choice in names(object@markers)) {
+    if (active.ident %in% names(object@markers[[choice]])) {
+      valid.choices <- c(choice, valid.choices)
+    }
+  }
+  return(valid.choices)
+}
 
 #' Finds best markers available for current idents.
 #'
 #' @param RET gcdSeurat object
 #' @return RET with meta.list modified to inclue active.ident
 #' 
-#' @importFrom dplyr %>%
 #' @method BestMarkers gcdSeurat
 #' @export
 #' 
-BestMarkers.gcdSeurat <- function(object, ...) {
+BestMarkers.gcdSeurat <- function(object, verbose = F, slot = NULL, ...) {
   max.markers <- 0
   best.markers <- NULL
+  active.ident <- ActiveIdent(object)
   # Taking the set of markers with the most total genes observed 
+  if (!is.null(slot)) {
+    return(object@markers[[slot]][[active.ident]])
+  }
   for (choice in names(object@markers)) {
-    if (ActiveIdent(object) %in% names(object@markers[[choice]])) {
-      num.markers <- sum(unlist(lapply(object@markers[[choice]][[ActiveIdent(object)]], nrow)))
+    if (active.ident %in% names(object@markers[[choice]])) {
+      num.markers <- sum(unlist(lapply(object@markers[[choice]][[active.ident]], nrow)))
       if (num.markers >= max.markers) best.markers <- choice
     }
   }
   if (is.null(best.markers)) {
     warning("Couldn't find active markers in metadata!")
   }
-  return(object@markers[[best.markers]][[ActiveIdent(object)]])
+  return(object@markers[[best.markers]][[active.ident]])
 }
 
 #' @export
 #'
 BestMarkers <- function(object, ...) {
   UseMethod(generic = 'BestMarkers', object = object)
+}
+
+#' @export
+#'
+ActiveMarkers <- function(object, ...) {
+  UseMethod(generic = 'ActiveMarkers', object = object)
 }
 
 

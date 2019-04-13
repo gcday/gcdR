@@ -1,43 +1,18 @@
-#' Adds module scores to a Seurat object
-#'
-#'
-#' @param RET list containing Seurat object
-#' @param modules named list of modules (containing gene names) to be added
-#' 
-#' @return list containing Seurat object and TSNE plots (tsne.treatment and tsne.ident) of the CCA
-#' @examples
-#' scoreModules(RET, modules)
-#'
-#' @export
-scoreModules <- function(RET, modules) {
-  require("Seurat")
-  if (!'modules' %in% names(RET@meta.list)) {
-    RET@meta.list$modules <- list()
-  }
-  i <- 0
-  assay.data <- GetAssayData(RET@seurat)
-  data.avg <- Matrix::rowMeans(x = assay.data[rownames(RET@seurat), ])
-  control.pool <- names(data.avg[data.avg != 0])
-  for (module.name in names(modules)) {
-    i <- i + 1
-    # message(class(modules[[module.name]]))
-    if (class(modules[[module.name]]) == "character") {
-    	modules[[module.name]] = list(modules[[module.name]])
-    }
-    features = modules[[module.name]]
-    features[[1]] = features[[1]][features[[1]] %in% control.pool]
-    if (length(features[[1]]) <= 1) {
-    	next
-    }
-    RET@meta.list$modules[[module.name]] <- features
-    message("Scoring ", module.name, " (", i, " of ", length(modules), ")")
-    RET@seurat <- AddModuleScore(RET@seurat, features = features,
-                                 name = module.name, pool = control.pool, 
-                                 ctrl = min(vapply(X = features, FUN = length, 
-            FUN.VALUE = numeric(length = 1))))
-    RET@seurat@meta.data[[module.name]] <- RET@seurat@meta.data[[paste0(module.name, "1")]]
-  }
-  return(RET)
+# Check the length of components of a list
+#
+# @param values A list whose components should be checked
+# @param cutoff A minimum value to check for
+#
+# @return a vector of logicals
+#
+LengthCheck <- function(values, cutoff = 0) {
+  return(vapply(
+    X = values,
+    FUN = function(x) {
+      return(length(x = x) > cutoff)
+    },
+    FUN.VALUE = logical(1)
+  ))
 }
 
 #' Performs cell cycle scoring
@@ -474,4 +449,30 @@ guessGCDSeuratSpecies <- function(RET, exhaustive = F, verbose = F) {
     message("Best guess: ", species, ", with ", max.length, " matches.")
   }
   return(best.fit)
+}
+
+#' Adds cell cycle scoring to mouse/human scRNAseq data
+#'
+#'
+#' @param RET gcdSeurat object
+#' @return RET with meta.list modified to inclue active.ident
+#'
+#' @export
+#'
+guessSpeciesAddCellCycleScoring <- function(RET, overwrite = F, shiny = T) {
+  if (overwrite | !"Phase" %in% colnames( RET@seurat@meta.data )) {
+    best.guess <- guessGCDSeuratSpecies(RET)
+    if (best.guess == "Homo sapiens") {
+      cc.genes.species <- cc.genes
+    } else if (best.guess == "Mus musculus") {
+      cc.genes.species <- mouse.cc.genes
+    } else {
+      warning("Unsupported species for cell cycle scoring!")
+      return(RET)
+    }
+    if (shiny) incProgress(amount = 0.2, message = "Adding cell cycle scores...")
+    RET <- gcdCellCycleScoring(RET, cc.genes.species$s.genes, 
+                               cc.genes.species$g2m.genes, set.ident = F)
+  }
+  return(RET)
 }

@@ -1,19 +1,4 @@
-addCellCycleScoring <- function(RET) {
-  if (!"Phase" %in% colnames( RET@seurat@meta.data )) {
-    if (DATA$species == "Homo sapiens") {
-      cc.genes.species <- cc.genes
-    } else if (DATA$species == "Mus musculus") {
-      cc.genes.species <- mouse.cc.genes
-    } else {
-      warning("Unsupported species for cell cycle scoring!")
-      return(RET)
-    }
-    incProgress(amount = 0.2, message = "Adding cell cycle scores...")
-    RET <- gcdCellCycleScoring(RET, cc.genes.species$s.genes, 
-                               cc.genes.species$g2m.genes, set.ident = F)
-  }
-  return(RET)
-}
+
 
 
 updateGroupOptions <- function() {
@@ -37,7 +22,7 @@ openInitialRDS <- function(rds.path) {
   # DATA$mouse <- "Sdc1" %in% rownames(RET@seurat)
   DATA$species <- guessGCDSeuratSpecies(RET)
   
-  RET <- addCellCycleScoring(RET)
+  RET <- guessSpeciesAddCellCycleScoring(RET)
   
   DATA$orig.RET <- RET
   
@@ -71,6 +56,7 @@ observeEvent(input$IMAGE$datapath, {
 })
 volumes <- c(Home = fs::path_home(), 
              OneDrive = "/mnt/c/Users/grady/OneDrive - Leland Stanford Junior University",
+             Mayo = "/mnt/c/Users/grady/OneDrive - Leland Stanford Junior University/Mayo/Mouse sc-RNAseq/",
              getVolumes()())
 shinyFileChoose(input,'file', session=session, roots=volumes, 
                 defaultRoot = "OneDrive",

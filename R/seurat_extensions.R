@@ -1,20 +1,3 @@
-# Check the length of components of a list
-#
-# @param values A list whose components should be checked
-# @param cutoff A minimum value to check for
-#
-# @return a vector of logicals
-#
-LengthCheck <- function(values, cutoff = 0) {
-  return(vapply(
-    X = values,
-    FUN = function(x) {
-      return(length(x = x) > cutoff)
-    },
-    FUN.VALUE = logical(1)
-  ))
-}
-
 #' Performs cell cycle scoring
 #'
 #'
@@ -171,6 +154,12 @@ correlationAcrossIdents <- function(RET, vars.to.corr, only.var = TRUE) {
   return(RET)
 }
 
+#' Helper function for correlateVariables
+#' 
+#' 
+#' @importFrom tibble rownames_to_column
+
+
 getCorrLists <- function(vars.to.corr, exp_matrix, ident.name = "All cells") {
 	calcCorrs <- function(var.name) {
   	var.expr <- as.numeric(exp_matrix[var.name,])
@@ -189,19 +178,24 @@ getCorrLists <- function(vars.to.corr, exp_matrix, ident.name = "All cells") {
 #'
 #'
 #' @param RET list containing Seurat object
-#' @param vars.to.corr variables to correlate ()
+#' @param vars.to.corr variables to correlate 
 #' @param only.var if True, only consider named variables and not all modules
 #' 
 #' @return list containing Seurat object and TSNE plots (tsne.treatment and tsne.ident) of the CCA
 #'
 #' @examples
 #' correlateVariables(RET, vars.to.corr, True)
+#' 
+#' @importFrom dplyr left_join
+#' @importFrom Seurat FindVariableFeatures GetAssayData VariableFeatures FetchData Idents
+#' 
 #'
 #' @export
-correlateVariables <- function(RET, vars.to.corr, only.var = TRUE, split.by = NULL) {
+correlateVariables <- function(RET, vars.to.corr, 
+                               only.var = TRUE, split.by = NULL) {
   require("dplyr")
-  require("tibble")
-  require("future.apply")
+  # require("tibble")
+  # require("future.apply")
   all.correlations <- list()
   exp_matrix <- as.matrix(GetAssayData(RET@seurat))
   if (only.var) {

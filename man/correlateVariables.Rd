@@ -9,7 +9,7 @@ correlateVariables(RET, vars.to.corr, only.var = TRUE, split.by = NULL)
 \arguments{
 \item{RET}{list containing Seurat object}
 
-\item{vars.to.corr}{variables to correlate ()}
+\item{vars.to.corr}{variables to correlate}
 
 \item{only.var}{if True, only consider named variables and not all modules}
 }

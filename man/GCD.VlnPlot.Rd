@@ -8,7 +8,7 @@ GCD.VlnPlot(object, features, cols = NULL, pt.size = 1,
   idents = NULL, sort = FALSE, assay = NULL, group.by = NULL,
   split.by = NULL, adjust = 1, y.max = NULL, same.y.lims = FALSE,
   log = FALSE, ncol = NULL, combine = TRUE, slot = "data",
-  show.quantiles = T, quantiles = 4, ...)
+  show.quantiles = T, quantiles = 2, ...)
 }
 \arguments{
 \item{object}{Seurat object}

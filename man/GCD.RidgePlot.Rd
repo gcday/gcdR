@@ -7,7 +7,7 @@
 GCD.RidgePlot(object, features, cols = NULL, idents = NULL,
   sort = FALSE, assay = NULL, group.by = NULL, y.max = NULL,
   same.y.lims = FALSE, log = FALSE, ncol = NULL, combine = TRUE,
-  slot = "data", show.quantiles = TRUE, quantiles = 4, ...)
+  slot = "data", show.quantiles = TRUE, quantiles = 2, ...)
 }
 \arguments{
 \item{object}{Seurat object}

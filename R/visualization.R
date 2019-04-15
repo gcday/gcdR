@@ -467,7 +467,7 @@ SingleExIPlot <- function(
   cols = NULL,
   log = FALSE,
   show.quantiles = T,
-  quantiles = 4
+  quantiles = 2
 ) {
   set.seed(seed = 42)
   if (!is.data.frame(x = data) || ncol(x = data) != 1) {
@@ -540,7 +540,12 @@ SingleExIPlot <- function(
         scale_y_discrete(expand = c(0.01, 0)),
         scale_x_continuous(expand = c(0, 0))
       )
-      if (show.quantiles) geom <- append(geom, stat_density_ridges(quantile_lines = T, scale = 4))
+      if (show.quantiles) {
+        geom <- append(geom, 
+                       stat_density_ridges(quantile_lines = T, 
+                                           scale = 4, 
+                                           quantiles = quantiles))
+      }
       jitter <- geom_jitter(width = 0, size = pt.size)
       log.scale <- scale_x_log10()
       axis.scale <- function(...) {
@@ -643,7 +648,7 @@ GCD.RidgePlot <- function(
   combine = TRUE,
   slot = 'data',
   show.quantiles = TRUE,
-  quantiles = 4,
+  quantiles = 2,
   ...
 ) {
   return(ExIPlot(
@@ -827,7 +832,7 @@ GCD.VlnPlot <- function(
   combine = TRUE,
   slot = 'data',
   show.quantiles = T,
-  quantiles = 4,
+  quantiles = 2,
   ...
 ) {
   return(ExIPlot(

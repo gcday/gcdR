@@ -21,7 +21,7 @@ Imports:
 	ape,
 	yaml,
 	parallel,
-	fgsea (>= 1.9.4),
+	fgsea,
 	enrichR
 Suggests:
 	fgsea

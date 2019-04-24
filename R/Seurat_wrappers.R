@@ -217,14 +217,26 @@ gcdPrintSeuratQC <- function(RET) {
 #' @examples
 #' seuratVariableWrapper(RET)
 #'
+#' @importFrom Seurat ScaleData FindVariableFeatures NormalizeData
+#'
+#' 
 #' @export
-seuratVariableWrapper <- function(RET, nfeatures = 2500, vars.to.regress = NULL, do.normalize = F) {
+seuratVariableWrapper <- function(RET, nfeatures = 2500, vars.to.regress = NULL, do.normalize = F,
+                                  scale.all.features = TRUE) {
   if (do.normalize) {
     RET@seurat <- NormalizeData(RET@seurat, normalization.method = "LogNormalize", scale.factor = 10000)
   }
 	RET@seurat <- FindVariableFeatures(object = RET@seurat, selection.method = "vst", nfeatures = nfeatures)
   # RET@plots[["variable.genes"]] <- VariableFeaturePlot(object = RET@seurat)
-  RET@seurat <- ScaleData(RET@seurat, vars.to.regress = vars.to.regress)
+	if (scale.all.features) {
+	  features.scale <- rownames(RET@seurat)
+	} else {
+	  features.scale <- NULL
+	}
+	message(features.scale)
+	
+	message(length(features.scale))
+  RET@seurat <- ScaleData(RET@seurat, vars.to.regress = vars.to.regress, features = features.scale)
   return(RET)
 }
 

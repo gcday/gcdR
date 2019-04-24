@@ -13,13 +13,13 @@ multiPanelSeuratFigs <- function(features, fig.type = "violin", n.row = 2,
                               combine = F)
   } else {
     if (fig.type == "violin") {
-      plots.list <- VlnPlot(DATA$RET@seurat,
+      plots.list <- GCD.VlnPlot(DATA$RET@seurat,
                             features = c(features),
                             cols = Palettes(DATA$orig.RET, as.integer(input$COLOR.PALETTE)), 
                             pt.size = ifelse(vln.show.dots, 1, 0),
                             combine = F, slot = input$DATA.SLOT)
     } else if (fig.type == "ridge") {
-      plots.list <- RidgePlot(DATA$RET@seurat,
+      plots.list <- GCD.RidgePlot(DATA$RET@seurat,
                             features = c(features),
                             cols = Palettes(DATA$orig.RET, as.integer(input$COLOR.PALETTE)),
                             combine = F, slot = input$DATA.SLOT)

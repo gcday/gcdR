@@ -159,7 +159,8 @@ AddModuleScoreGCD <- function(
   do.parallel = T,
   check.parallel = F,
   feature.names = NULL,
-  check.features = F
+  check.features = F,
+  bin_size = 256
 ) {
   set.seed(seed = seed)
   assay.old <- DefaultAssay(object = object)

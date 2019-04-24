@@ -254,7 +254,7 @@ seuratAllMarkers <- function(RET,
                              fast.threshold = 0.25, 
                              shiny = F, 
                              idents.use = NULL) {
-  require(Seurat)
+  # require(Seurat)
   if (do.fast) {
     message("Calculating fast markers...")
     # RET@markers[[RET@meta.list$active.ident]]
@@ -264,7 +264,9 @@ seuratAllMarkers <- function(RET,
   if (do.full) {
     message("Calculating full markers...")
     RET <- setMarkersByCluster(RET, "full", 
-      FindAllMarkersShiny(RET@seurat, logfc.threshold = 0.05, shiny = shiny, idents.use = idents.use), idents.use = idents.use)
+      FindAllMarkersShiny(RET@seurat, logfc.threshold = 0.05, 
+                          shiny = shiny, 
+                          idents.use = idents.use), idents.use = idents.use)
   }
   return(RET)
 }

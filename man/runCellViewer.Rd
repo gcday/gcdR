@@ -4,7 +4,7 @@
 \alias{runCellViewer}
 \title{Launches Seurat viewer app}
 \usage{
-runCellViewer()
+runCellViewer(...)
 }
 \description{
 Launches Seurat viewer app

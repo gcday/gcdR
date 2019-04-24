@@ -8,7 +8,7 @@ doPlotsSingleGene <- function(gene, vln.width = "auto", vln.height = 400,
              box(
                width = 5, status = "primary",
                renderPlot({
-                 VlnPlot(DATA$RET@seurat, features = c(gene),
+                 GCD.VlnPlot(DATA$RET@seurat, features = c(gene),
                          cols = Palettes(DATA$orig.RET, as.integer(input$COLOR.PALETTE)), 
                          pt.size = pt.size, slot = input$DATA.SLOT) + NoLegend()
                }, width = vln.width, height = vln.height),
@@ -24,9 +24,9 @@ doPlotsSingleGene <- function(gene, vln.width = "auto", vln.height = 400,
            ),
            fluidRow(
              box(
-               width = 8, status = "primary",
+               width = 10, status = "primary",
                renderPlot({
-                 RidgePlot(DATA$RET@seurat, features = c(gene),
+                 GCD.RidgePlot(DATA$RET@seurat, features = c(gene),
                          cols = Palettes(DATA$orig.RET, as.integer(input$COLOR.PALETTE)), 
                          slot = input$DATA.SLOT) + NoLegend()
                }, width = vln.width, height = vln.height),

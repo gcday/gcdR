@@ -22,7 +22,8 @@ Imports:
 	yaml,
 	parallel,
 	fgsea,
-	enrichR
+	enrichR,
+	msigdbr
 Suggests:
 	fgsea
 

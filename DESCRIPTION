@@ -9,6 +9,10 @@ Imports:
 	Seurat (>= 3.0),
 	shiny,
 	shinydashboard,
+	shinydashboardPlus,
+	shinyFiles,
+	shinyWidgets,
+	fs,
 	shinyBS,
 	future,
 	DT,
@@ -23,7 +27,8 @@ Imports:
 	parallel,
 	fgsea,
 	enrichR,
-	msigdbr
+	msigdbr,
+	ggtree
 Suggests:
 	fgsea
 

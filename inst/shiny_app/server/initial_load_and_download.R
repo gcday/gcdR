@@ -16,8 +16,9 @@ updateGroupOptions <- function() {
                        selected = ifelse(isTruthy(input$SPLIT.BY), input$SPLIT.BY, split.choices[1]))
 }
 
-openInitialRDS <- function(rds.path) {
-  RET <- readSeuratRDStoGCD(rds.path, shiny = T)
+openInitialRDS <- function(object) {
+
+  RET <- readSeuratRDStoGCD(object = object, shiny = T)
   RET <- gcdRunUMAP(RET)
   # DATA$mouse <- "Sdc1" %in% rownames(RET@seurat)
   DATA$species <- guessGCDSeuratSpecies(RET)
@@ -51,22 +52,34 @@ openInitialRDS <- function(rds.path) {
 
 observeEvent(input$IMAGE$datapath, {
   withProgress(message = 'Loading', value = 0, {
-    openInitialRDS(input$IMAGE$datapath )
+    openInitialRDS(object = readRDS(file = input$IMAGE$datapath ))
   })
 })
-volumes <- c(Home = fs::path_home(), 
-             OneDrive = "/mnt/c/Users/grady/OneDrive - Leland Stanford Junior University",
-             Mayo = "/mnt/c/Users/grady/OneDrive - Leland Stanford Junior University/Mayo/Mouse sc-RNAseq/",
-             getVolumes()())
+volumes <- getOption(x = "gcdR.cellViewer.volumes", 
+                     default = c(Home = fs::path_home(),
+                                 shinyFiles::getVolumes()()))
+defaultRoot <- getOption(x = "gcdR.cellViewer.defaultRoot", 
+                        default = NULL)
+defaultPath <- getOption(x = "gcdR.cellViewer.defaultPath", 
+                         default = "")
+                        
+
+             
+             # OneDrive = "/mnt/c/Users/grady/OneDrive - Leland Stanford Junior University",
+             # Mayo = "/mnt/c/Users/grady/OneDrive - Leland Stanford Junior University/Mayo/Mouse sc-RNAseq/",
+             # getVolumes()())
 shinyFileChoose(input,'file', session=session, roots=volumes, 
-                defaultRoot = "OneDrive",
-                defaultPath = "Levy Lab/scRNA-seq/",
+                defaultRoot = defaultRoot,
+                defaultPath = defaultPath,
                 filetypes = c("rds")
 )
 shinyFileSave(input, "serverside_save", session = session, 
               roots = volumes, 
-              defaultRoot = "OneDrive",
-              defaultPath = "Levy Lab/scRNA-seq/")
+              defaultRoot = defaultRoot,
+              defaultPath = defaultPath)
+              
+              # defaultRoot = "OneDrive",
+              # defaultPath = "Levy Lab/scRNA-seq/")
 
 
 # shinyFileChoose(input, 'LOCAL.FILE', roots = volumes, session = session)
@@ -77,7 +90,7 @@ observeEvent(input$file, {
   # print(inFile)
   req(isTruthy(inFile$datapath))
   withProgress(message = 'Loading', value = 0, {
-    openInitialRDS(inFile$datapath)
+    openInitialRDS(object = readRDS(file = inFile$datapath))
   })
   
 }, ignoreInit = T, ignoreNULL = T)
@@ -98,6 +111,13 @@ observeEvent(input$serverside_save, {
   
 }, ignoreInit = T, ignoreNULL = T)
 #
+observe({
+  req(DATA$INPUT.OBJECT)
+  withProgress(message = 'Loading', value = 0, {
+    openInitialRDS(object = DATA$INPUT.OBJECT)
+    DATA$INPUT.OBJECT <- NULL
+  })
+})
 
 
 # observeEvent(parseFilePaths(volumes, input$LOCAL.FILE), {

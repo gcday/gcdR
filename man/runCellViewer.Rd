@@ -4,11 +4,15 @@
 \alias{runCellViewer}
 \title{Launches Seurat viewer app}
 \usage{
-runCellViewer(...)
+runCellViewer(object = NULL, ...)
+}
+\arguments{
+\item{...}{Arguments passed to shiny::runApp}
 }
 \description{
 Launches Seurat viewer app
 }
 \examples{
 runCellViewer()
+
 }

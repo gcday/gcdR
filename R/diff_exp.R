@@ -246,6 +246,8 @@ seuratMarkersBetweenConditions <- function(SRT, cond.var, cond.1, cond.2) {
 #'
 #' @examples
 #' seuratAllMarkers(RET)
+#' 
+#' @importFrom Seurat SummarizeExprAcrossIdents FindAllMarkers
 #'
 #' @export
 seuratAllMarkers <- function(RET, 
@@ -253,20 +255,54 @@ seuratAllMarkers <- function(RET,
                              do.full = FALSE, 
                              fast.threshold = 0.25, 
                              shiny = F, 
-                             idents.use = NULL) {
-  # require(Seurat)
+                             idents.use = NULL,
+                             assay = NULL,
+                             slot = "data", 
+                             features = NULL,
+                             verbose = T,
+                             test.use = "wilcox",
+                             ident.summary.data = NULL) {
+  assay <- assay %||% DefaultAssay(RET@seurat)
+  RET@meta.list$precalc.ident.expr <- RET@meta.list$precalc.ident.expr %||% list()
+  precalc.expr.name <- paste(ActiveIdent(object = RET), assay, slot, sep = "_")
+  if (!precalc.expr.name %in% names(RET@meta.list$precalc.ident.expr)) {
+    expr.summ <- ident.summary.data %||% 
+      SummarizeExprAcrossIdents(object = RET@seurat, 
+                                assay = assay,
+                                slot = slot,
+                                verbose = verbose)
+    RET@meta.list$precalc.ident.expr[[precalc.expr.name]] <- expr.summ
+  }
+  
+  
   if (do.fast) {
     message("Calculating fast markers...")
     # RET@markers[[RET@meta.list$active.ident]]
-    RET <- setMarkersByCluster(RET, "quick", 
-      FindAllMarkersShiny(RET@seurat, logfc.threshold = fast.threshold, shiny = shiny, idents.use = idents.use), idents.use = idents.use)
+    RET <- setMarkersByCluster(RET = RET, markers.type = "quick", 
+                               FindAllMarkers(object = RET@seurat, 
+                                              logfc.threshold = fast.threshold, 
+                                              verbose = verbose,
+                                              test.use = test.use,
+                                              ident.summary.data = RET@meta.list$precalc.ident.expr[[precalc.expr.name]]),
+                               idents.use = idents.use)
+                               
+    # RET <- setMarkersByCluster(RET, "quick", 
+      # FindAllMarkersShiny(RET@seurat, logfc.threshold = fast.threshold, shiny = shiny, idents.use = idents.use), idents.use = idents.use)
   }
   if (do.full) {
     message("Calculating full markers...")
-    RET <- setMarkersByCluster(RET, "full", 
-      FindAllMarkersShiny(RET@seurat, logfc.threshold = 0.05, 
-                          shiny = shiny, 
-                          idents.use = idents.use), idents.use = idents.use)
+    RET <- setMarkersByCluster(RET = RET, markers.type = "full", 
+                               markers = FindAllMarkers(RET@seurat, 
+                                              logfc.threshold = 0.05,
+                                              verbose = verbose,
+                                              test.use = test.use,
+                                              ident.summary.data = RET@meta.list$precalc.ident.expr[[precalc.expr.name]]), 
+                               idents.use = idents.use)
+    # 
+    # RET <- setMarkersByCluster(RET, "full", 
+    #   FindAllMarkersShiny(RET@seurat, logfc.threshold = 0.05, 
+    #                       shiny = shiny, 
+    #                       idents.use = idents.use), idents.use = idents.use)
   }
   return(RET)
 }

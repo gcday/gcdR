@@ -4,7 +4,7 @@
 \alias{seuratClusterWrapper}
 \title{Wrapper function to perform clustering and run TSNE on a Seurat object}
 \usage{
-seuratClusterWrapper(RET, dims = NULL, resolution = 0.5, do.TSNE = T,
+seuratClusterWrapper(RET, dims = NULL, resolution = 0.8, do.TSNE = T,
   do.UMAP = T, do.tree = T)
 }
 \arguments{

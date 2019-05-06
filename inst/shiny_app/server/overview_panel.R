@@ -15,7 +15,7 @@ observeEvent(input$CLUSTER, ignoreInit = T, {
     if(class(DATA$orig.RET@seurat[[input$CLUSTER]][[input$CLUSTER]]) == "character") {
       # Getting the sort order correct (e.g. 0, 1, 2,...) for numeric idents stored as chars, hopefully
       Idents(DATA$orig.RET@seurat) <- as.factor(type.convert(DATA$orig.RET@seurat@meta.data[[input$CLUSTER]]))
-      message(levels(as.factor(type.convert(DATA$orig.RET@seurat@meta.data[[input$CLUSTER]]))))
+      # message(levels(as.factor(type.convert(DATA$orig.RET@seurat@meta.data[[input$CLUSTER]]))))
     } else if (class(DATA$orig.RET@seurat[[input$CLUSTER]][[input$CLUSTER]]) == "factor") {
       Idents(DATA$orig.RET@seurat) <- input$CLUSTER
     } else {
@@ -35,7 +35,7 @@ observeEvent(input$CLUSTER, ignoreInit = T, {
 observeEvent(input$SELECTION, ignoreInit = T, {
   if (!is.null(input$SELECTION)) {
     DATA$ACTIVE.FILTER <- T
-    print(length(input$SELECTION))
+    # print(length(input$SELECTION))
     pass.cells <- which(DATA$orig.RET@seurat@meta.data[,input$FILTER] %in% input$SELECTION)
     CELLS.USE <- colnames(DATA$orig.RET@seurat)[pass.cells]
     DATA$RET@seurat <- subset(DATA$orig.RET@seurat, cells = CELLS.USE)

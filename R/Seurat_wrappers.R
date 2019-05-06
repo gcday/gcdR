@@ -275,10 +275,11 @@ seuratPCAWrapper <- function(RET, do.jackstraw = FALSE, pcs.compute = 30) {
 #'
 #' @examples
 #' seuratClusterWrapper(RET)
+#' 
+#' @importFrom Seurat FindNeighbors FindClusters RunTSNE RunUMAP BuildClusterTree
 #'
 #' @export
-seuratClusterWrapper <- function(RET, dims = NULL, resolution = 0.50, do.TSNE = T, do.UMAP = T, do.tree = T) {
-  require(Seurat)
+seuratClusterWrapper <- function(RET, dims = NULL, resolution = 0.8, do.TSNE = T, do.UMAP = T, do.tree = T) {
   if (is.null(dims)) {
     if (!is.null(RET@meta.list$dims)) {
       dims <- RET@meta.list$dims
@@ -290,7 +291,7 @@ seuratClusterWrapper <- function(RET, dims = NULL, resolution = 0.50, do.TSNE = 
   }
   RET@seurat <- FindNeighbors(object = RET@seurat, dims = dims)
 
-  RET@seurat <- FindClusters(RET@seurat, resolution = resolution)
+RET@seurat <- FindClusters(RET@seurat, resolution = resolution)
   if (do.TSNE) {
    	RET@seurat <- RunTSNE(RET@seurat, dims = dims)
   	# RET@plots[["TSNE"]] <- DimPlot(RET@seurat, label = T, reduction = "tsne", repel = T)
@@ -300,7 +301,7 @@ seuratClusterWrapper <- function(RET, dims = NULL, resolution = 0.50, do.TSNE = 
     # RET@plots[["UMAP"]] <- DimPlot(RET@seurat, label = T, reduction = "umap", repel = T)
   } 
   if (do.tree) {
-    RET@seurat <- BuildClusterTree(RET@seurat, dims = RET@meta.list$dims)
+    RET@seurat <- BuildClusterTree(RET@seurat, dims = dims)
   }
   return(RET)
 }

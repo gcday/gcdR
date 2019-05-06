@@ -4,13 +4,17 @@
 \alias{readSeuratRDStoGCD}
 \title{Reads Seurat/gcdSeurat object and converts it to updated gcdSeurat}
 \usage{
-readSeuratRDStoGCD(path, shiny = FALSE)
+readSeuratRDStoGCD(path = "", object = NULL, shiny = FALSE)
 }
 \arguments{
-\item{RET}{gcdSeurat object}
+\item{path}{Filepath to .rds object storing a gcdSeurat or Seurat object}
+
+\item{object}{In-memory gcdSeurat/Seurat object.}
+
+\item{shiny}{Print shiny progress updates?}
 }
 \value{
-RET with meta.list modified to inclue active.ident
+gcdSeurat object
 }
 \description{
 Reads Seurat/gcdSeurat object and converts it to updated gcdSeurat

@@ -4,9 +4,8 @@
 \alias{runEnrichrOnDEGenes}
 \title{Runs DE genes through enrichR}
 \usage{
-runEnrichrOnDEGenes(RET, path.dbs.to.check,
-  pval.thresh = 1.00000000000000e-50, logfc.thresh = 0,
-  idents.to.use = NULL)
+runEnrichrOnDEGenes(RET, path.dbs.to.check, pval.thresh = 1e-50,
+  logfc.thresh = 0, idents.to.use = NULL)
 }
 \arguments{
 \item{RET}{gcdSeurat}

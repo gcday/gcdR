@@ -29,13 +29,20 @@ setClass("gcdSeurat",
 #' Reads Seurat/gcdSeurat object and converts it to updated gcdSeurat
 #'
 #'
-#' @param RET gcdSeurat object
-#' @return RET with meta.list modified to inclue active.ident
+#' @param path Filepath to .rds object storing a gcdSeurat or Seurat object
+#' @param object In-memory gcdSeurat/Seurat object.
+#' @param shiny Print shiny progress updates?
+#' 
+#' @return gcdSeurat object
 #' 
 #' @export
 #' 
-readSeuratRDStoGCD <- function(path, shiny = FALSE) {
-  IN.OBJ <- readRDS(path)
+readSeuratRDStoGCD <- function(path = "", object = NULL, shiny = FALSE) {
+  if (!is.null(object)) {
+    IN.OBJ <- object
+  } else {
+    IN.OBJ <- readRDS(path)
+  }
   RET <- new(Class = "gcdSeurat")
   if (class(IN.OBJ) == "gcdSeurat") {
     RET <- gcdUpdateSeurat(RET = IN.OBJ, shiny = shiny)
@@ -180,8 +187,9 @@ renameAllIdents <- function(RET, new.idents) {
 #'
 #' @export
 gcdRenameIdent <- function(RET, ident.to.rename, new.label) {
-  levels(RET@seurat)[levels(RET@seurat) == ident.to.rename] <- new.label
   active.ident <- suppressWarnings(ActiveIdent(RET))
+  levels(RET@seurat)[levels(RET@seurat) == ident.to.rename] <- new.label
+  
   RET@seurat[[active.ident]][[active.ident]] <- Idents(RET@seurat)
   # levels(RET@seurat[[ActiveIdent(RET)]][[ActiveIdent(RET)]])[levels(RET@seurat[[ActiveIdent(RET)]][[ActiveIdent(RET)]]) == ident.to.rename] <- new.label
   
@@ -245,18 +253,31 @@ CellGroups <- function(object, ...) {
 ActiveIdent.gcdSeurat <- function(object, ...) {
   active.ident <- object@meta.list$active.ident
   # active.ident <- NULL
-  for (choice in CellGroups(object)) {
-    if(isTRUE(all.equal(as.character(Idents(object@seurat)),
-                        as.character(object@seurat@meta.data[[choice]])))) {
-      active.ident <- choice
-      object@meta.list$active.ident <- active.ident
-      break
-    }
+  cell.groups <- CellGroups(object)
+  exact.matches <- cell.groups[sapply(X = cell.groups,
+                                      FUN = function(choice) {
+                                        isTRUE(all.equal(as.character(Idents(object@seurat)),
+                                                         as.character(object@seurat@meta.data[[choice]])))
+                                      })]
+  if ("seurat_clusters" %in% exact.matches & length(exact.matches) > 1) {
+    exact.matches <- exact.matches[exact.matches != "seurat_clusters"]
   }
-  if (is.null(active.ident)) {
+  if (length(exact.matches) == 0) {
     warning("Couldn't find active ident in metadata!")
+    return(NULL)
   }
-  return(object@meta.list$active.ident)
+  return(exact.matches[1])
+  # for (choice in CellGroups(object)) {
+  #   if() {
+  #     active.ident <- choice
+  #     object@meta.list$active.ident <- active.ident
+  #     break
+  #   }
+  # }
+  # if (is.null(active.ident)) {
+  #   
+  # }
+  # return(object@meta.list$active.ident)
 }
 
 #' @export

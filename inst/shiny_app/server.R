@@ -27,17 +27,20 @@ mydebug <- function(msg="[DEBUG]") {
   }
 }
 
+appDir <- system.file("shiny_app", package = "gcdR")
+if (appDir == "") {
+  stop("Could not find example directory. Try re-installing `gcdR`.", call. = FALSE)
+}
 
 server <- shinyServer(function(input, output, session){
-  DATA <- reactiveValues() 
-  source(file.path("server", "de_markers.R"), local = TRUE)$value
-  source(file.path("server", "fgsea_panel.R"), local = TRUE)$value
-  source(file.path("server", "initial_load_and_download.R"), local = TRUE)$value
-  source(file.path("server", "overview_panel.R"), local = TRUE)$value
-  source(file.path("server", "recluster.R"), local = TRUE)$value
-  source(file.path("server", "renaming.R"), local = TRUE)$value
-  source(file.path("server", "gene_expression_panel.R"), local = TRUE)$value
-  source(file.path("server", "marker_lists_panel.R"), local = TRUE)$value
+  source(file.path(appDir, "server", "de_markers.R"), local = TRUE)$value
+  source(file.path(appDir, "server", "fgsea_panel.R"), local = TRUE)$value
+  source(file.path(appDir, "server", "initial_load_and_download.R"), local = TRUE)$value
+  source(file.path(appDir, "server", "overview_panel.R"), local = TRUE)$value
+  source(file.path(appDir, "server", "recluster.R"), local = TRUE)$value
+  source(file.path(appDir, "server", "renaming.R"), local = TRUE)$value
+  source(file.path(appDir, "server", "gene_expression_panel.R"), local = TRUE)$value
+  source(file.path(appDir, "server", "marker_lists_panel.R"), local = TRUE)$value
   
   
 

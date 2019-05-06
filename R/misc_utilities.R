@@ -25,3 +25,39 @@ LengthCheck <- function(values, cutoff = 0) {
     FUN.VALUE = logical(1)
   ))
 }
+
+#' Reads in a list of markers by cell type
+#'
+#'
+#' @param RET list containing Seurat object and plots
+#' 
+#' @return none
+#'
+#' @examples
+#' readMarkersYAML(yaml.path)
+#' 
+#' 
+#' @importFrom yaml read_yaml
+#'
+#' @export
+readMarkersYAML <- function(yaml.path) {
+  raw.list <- read_yaml(yaml.path)
+  markers.list <- list()
+  alt.names <- list()
+  for (group.name in names(raw.list)) {
+    markers <- raw.list[[group.name]]
+    markers.list[[group.name]] <- NULL
+    for (marker.line in markers) {
+      splits <- unlist(strsplit(marker.line[[1]], split = "/", fixed = T))
+      if (length(splits) == 1) {
+        markers.list[[group.name]] <- c(markers.list[[group.name]], trimws(splits[[1]]))
+      } else {
+        markers.list[[group.name]] <- c(markers.list[[group.name]], trimws(splits[[1]]))
+        alt.names[[trimws(splits[[1]])]] <-  trimws(splits[[2]])
+      }
+      
+    }
+    
+  }
+  return(list(markers.list = markers.list, alt.names = alt.names))
+}

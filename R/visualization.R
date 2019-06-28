@@ -1,3 +1,115 @@
+splitObjectSummary <- function(object, split.by, group.by) {
+  split.vals <- as.factor(object[[split.by]][[split.by]])
+  group.vals <- Idents(object)
+  summary.table <- table(Idents(object), split.vals)
+  revised.dt <- NULL
+  for (i in 1:length(levels(group.vals))) {
+    for (j in 1:length(levels(split.vals))) {
+      val <- summary.table[i + (j - 1) * length(levels(group.vals))]
+      row <- levels(group.vals)[i]
+      col <- levels(split.vals)[j]
+      new.dt <- data.frame(row, col, val)
+      revised.dt <- rbind(revised.dt, new.dt)
+    }
+  }
+  colnames(revised.dt) <- c(group.by, split.by, "count")
+  return(revised.dt)
+}
+
+#' Applies the same X/Y axis limits to a list of plots.
+#' 
+#' @param ... plots 
+#' 
+#' @importFrom ggplot2 ggplot scale_fill_manual aes_string geom_bar 
+#' @importFrom Seurat SeuratAxes NoGrid RotatedAxis
+#' @export
+#' 
+#' 
+splitBarPlot <- function(object, group.by, split.by, cols, do.percent = T, do.facet = F) {
+  split.dt <- splitObjectSummary(object = object, group.by = group.by, split.by = split.by)
+  if (do.facet) {
+    # plot <- ggplot(split.dt,
+    #                mapping = aes_string(x = group.by, 
+    #                                     y = "count", 
+    #                                     fill = group.by)[c(2, 3, 1)])
+    # plot <- plot + geom_bar(stat="identity", position = ifelse(do.percent, "fill", "stack")) +
+    #   scale_fill_manual(values = cols) + SeuratAxes() + NoGrid() + RotatedAxis() +
+    #   facet_wrap(as.formula(paste("~", split.by)))
+    plot <- ggplot(split.dt,
+                   mapping = aes_string(x = split.by, 
+                                        y = "count", 
+                                        fill = split.by)[c(2, 3, 1)])
+    plot <- plot + geom_bar(stat="identity", position = ifelse(do.percent, "fill", "stack")) +
+      scale_fill_manual(values = cols) + SeuratAxes() + NoGrid() + RotatedAxis() +
+      facet_wrap(as.formula(paste("~", group.by)))
+  } else {
+    plot <- ggplot(split.dt,
+                   mapping = aes_string(x = group.by, 
+                                        y = "count", 
+                                        fill = split.by)[c(2, 3, 1)])
+    plot <- plot + geom_bar(stat="identity", position = ifelse(do.percent, "fill", "stack")) +
+      scale_fill_manual(values = cols) + SeuratAxes() + NoGrid() + RotatedAxis()
+  }
+  return(plot)
+  # return(plot + geom_bar(stat="identity", position = ifelse(do.percent, "fill", "stack")) +
+  #          scale_fill_manual(values = cols) + SeuratAxes() + NoGrid() + RotatedAxis())
+
+}
+#' Applies the same X/Y axis limits to a list of plots.
+#' 
+#' @param ... plots 
+#' 
+#' @importFrom ggplot2 ggplot_build xlim ylim
+#' @importFrom cowplot draw_plot ggdraw
+#' @export
+#' 
+#' 
+blendedFeaturePlot <- function(object, features, title = NULL, ...) {
+  blend.plot <- FeaturePlot(object = object, 
+              features = features, blend = T, 
+              combine = F, ...)
+  blend.plot[[3]] <- blend.plot[[3]] + NoLegend() + labs(title = paste(title,  
+                                                                       features[[2]],
+                                                                       features[[1]],
+                                                                       "coexpression"))
+  return(ggdraw() +
+    draw_plot(blend.plot[[3]], x = 0, y = 0, width = 0.8, height = 1) +
+    draw_plot(blend.plot[[4]] + theme(plot.title = element_blank(),
+                                      axis.ticks = element_blank(), 
+                                      axis.text = element_blank()), 
+              x = 0.75, y = 0.4, 
+              width = 0.25, height = 0.3))
+}
+
+#' Applies the same X/Y axis limits to a list of plots.
+#' 
+#' @param ... plots 
+#' 
+#' @importFrom ggplot2 ggplot_build xlim ylim
+#' @export
+#' 
+plotWithSameXYLimits <- function(..., plotlist = NULL) {
+  plotlist <- plotlist %||% list(...)
+  x_min <- min(sapply(X = plotlist, FUN = function(x) {
+    ggplot_build(x)$layout$panel_scales_x[[1]]$range$range[1]
+  }))
+  x_max <- max(sapply(X = plotlist, FUN = function(x) {
+    ggplot_build(x)$layout$panel_scales_x[[1]]$range$range[2]
+  }))
+  
+  y_min <- min(sapply(X = plotlist, FUN = function(x) {
+    ggplot_build(x)$layout$panel_scales_y[[1]]$range$range[1]
+  }))
+  y_max <- max(sapply(X = plotlist, FUN = function(x) {
+    ggplot_build(x)$layout$panel_scales_y[[1]]$range$range[2]
+  }))
+  x_lims <- c(x_min, x_max)
+  y_lims <- c(y_min, y_max)
+  return(lapply(X = plotlist, FUN = function(x) {
+    x + xlim(x_lims) + ylim(y_lims)
+  }))
+}
+
 #' Feature expression heatmap
 #'
 #' Draws a heatmap of single cell feature expression.

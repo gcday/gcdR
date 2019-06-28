@@ -81,7 +81,11 @@ gcdUpdateSeurat <- function(RET = NULL, SRT = NULL, shiny = TRUE) {
     SRT <- UpdateSeuratObject(SRT)
   }
   else {
-    for (name in names(SRT@commands)) {
+    commands.use <- grep(pattern = "FindNeighbors", x = names(SRT@commands), value = T)
+    if (length(commands.use) == 0) {
+      commands.use <- names(SRT@commands)
+    }
+    for (name in commands.use) {
       message("command name: ", name)
       if ("dims" %in% names(SRT@commands[[name]]@params)) {
         dims <- SRT@commands[[name]]@params$dims
@@ -211,6 +215,16 @@ gcdRenameIdent <- function(RET, ident.to.rename, new.label) {
       names(RET@fgsea$results[[active.ident]]$ranks)[names(RET@fgsea$results[[active.ident]]$ranks) == ident.to.rename] <- new.label
       names(RET@fgsea$results[[active.ident]]$output)[names(RET@fgsea$results[[active.ident]]$output) == ident.to.rename] <- new.label
     }
+  }
+  if (active.ident %in% names(RET@enrichr)) {
+    if (ident.to.rename %in% names(RET@enrichr[[active.ident]])) {
+      names(RET@enrichr[[active.ident]])[names(RET@enrichr[[active.ident]]) == ident.to.rename] <- new.label
+    }
+  }
+  ident.expr.summaries <- names(RET@meta.list$precalc.ident.expr)
+  for (expr.names in ident.expr.summaries[tidyselect::starts_with(match = active.ident, vars = ident.expr.summaries)]) {
+    colnames(RET@meta.list$precalc.ident.expr[[expr.names]]$expr_counts)[colnames(RET@meta.list$precalc.ident.expr[[expr.names]]$expr_counts) == ident.to.rename] <- new.label
+    colnames(RET@meta.list$precalc.ident.expr[[expr.names]]$log_expr)[colnames(RET@meta.list$precalc.ident.expr[[expr.names]]$log_expr) == ident.to.rename] <- new.label
   }
   return(RET)
   # levels(DATA$orig.RET@seurat)[levels(DATA$orig.RET@seurat) %in% c(input$GRPS.TO.RENAME)] <- input$NEW.GRPS.NAME

@@ -16,6 +16,39 @@ updateGroupOptions <- function() {
                        selected = ifelse(isTruthy(input$SPLIT.BY), input$SPLIT.BY, split.choices[1]))
 }
 
+updateSplitVals <- function() {
+  req(input$SPLIT.BY, input$CLUSTER, DATA$RET)
+  
+  DATA$do.percent <- input$SPLIT.TYPE == "percent"
+  split.vals <- as.factor(DATA$RET@seurat[[input$SPLIT.BY]][[input$SPLIT.BY]])
+  DATA$split.dt.1 <- breakdownTable(split.vals, Idents(DATA$RET@seurat), transpose = T)
+  DATA$split.dt.2 <- breakdownTable(Idents(DATA$RET@seurat), 
+                                    split.vals)
+  
+  
+  summary.table <- table(Idents(DATA$RET@seurat), split.vals)
+  # if (input$SPLIT.TYPE == "percent") summary.table <- gcdR::percent.table(summary.table)
+  
+  
+  
+  revised.dt <- NULL
+  for (i in 1:length(levels(DATA$RET@seurat))) {
+    for (j in 1:length(levels(split.vals))) {
+      val <- summary.table[i + (j - 1) * length(levels(DATA$RET@seurat))]
+      row <- levels(DATA$RET@seurat)[i]
+      col <- levels(split.vals)[j]
+      new.dt <- data.frame(row, col, val)
+      revised.dt <- rbind(revised.dt, new.dt)
+    }
+  }
+  colnames(revised.dt) <- c(input$CLUSTER, input$SPLIT.BY, "count")
+  # DATA$split.datatable <-
+  
+  # var.1 <- 
+
+  DATA$split.datatable <- revised.dt
+}
+
 openInitialRDS <- function(object) {
 
   RET <- readSeuratRDStoGCD(object = object, shiny = T)
@@ -44,10 +77,15 @@ openInitialRDS <- function(object) {
       showModal(newNameModal())
     }
   } else {
-    DATA$orig.RET <- setActiveIdent(DATA$orig.RET)
+    # DATA$orig.RET <- setActiveIdent(DATA$orig.RET)
+    # choices <- CellGroups(DATA$orig.RET)
+    # split.choices <- CellGroups(DATA$orig.RET)
+    # [choices != ActiveIdent(DATA$orig.RET)]
+    # split.selected <- ifelse(isTruthy(input$SPLIT.BY), input$SPLIT.BY, split.choices[1])
     updateGroupOptions()
   }
-  message(ActiveIdent(DATA$orig.RET))
+  updateSplitVals()
+  message("finished!", ActiveIdent(DATA$orig.RET))
 }
 
 observeEvent(input$IMAGE$datapath, {
@@ -105,13 +143,14 @@ observeEvent(input$serverside_save, {
   # print(inFile)
   req(isTruthy(outFile$datapath))
   withProgress(message = 'Saving', value = 0, {
-    saveRDS(DATA$orig.RET, outFile$datapath)
+    saveRDS(DATA$orig.RET, outFile$datapath, compress = F)
     # openInitialRDS(inFile$datapath)
   })
   
 }, ignoreInit = T, ignoreNULL = T)
 #
-observe({
+observeEvent(DATA$INPUT.OBJECT, ignoreNULL = T,
+  {
   req(DATA$INPUT.OBJECT)
   withProgress(message = 'Loading', value = 0, {
     openInitialRDS(object = DATA$INPUT.OBJECT)

@@ -247,7 +247,7 @@ seuratMarkersBetweenConditions <- function(SRT, cond.var, cond.1, cond.2) {
 #' @examples
 #' seuratAllMarkers(RET)
 #' 
-#' @importFrom Seurat SummarizeExprAcrossIdents FindAllMarkers
+#' @importFrom Seurat FindAllMarkers
 #'
 #' @export
 seuratAllMarkers <- function(RET, 
@@ -261,29 +261,54 @@ seuratAllMarkers <- function(RET,
                              features = NULL,
                              verbose = T,
                              test.use = "wilcox",
-                             ident.summary.data = NULL) {
+                             ident.summary.data = NULL,
+                             ...) {
   assay <- assay %||% DefaultAssay(RET@seurat)
+  data.slot <- ifelse(
+    test = test.use %in% c("negbinom", "poisson", "DESeq2"),
+    yes = 'counts',
+    no = slot
+  )
   RET@meta.list$precalc.ident.expr <- RET@meta.list$precalc.ident.expr %||% list()
   precalc.expr.name <- paste(ActiveIdent(object = RET), assay, slot, sep = "_")
-  if (!precalc.expr.name %in% names(RET@meta.list$precalc.ident.expr)) {
-    expr.summ <- ident.summary.data %||% 
-      SummarizeExprAcrossIdents(object = RET@seurat, 
+  # Preference: use passed summary data (ident.summary.data) if present, 
+  #   fall back to previously calculated (stored in RET@meta.list$precalc.ident.expr),
+  #   only force re-calculation if needed. 
+  if (precalc.expr.name %in% names(RET@meta.list$precalc.ident.expr)) {
+    if (!is.null(ident.summary.data)) {
+      RET@meta.list$precalc.ident.expr[[precalc.expr.name]] <- ident.summary.data
+    } else {
+      ident.summary.data <- RET@meta.list$precalc.ident.expr[[precalc.expr.name]]
+    }
+  } else {
+    ident.summary.data <- ident.summary.data %||%
+      SummarizeExprAcrossIdents(object = RET@seurat,
                                 assay = assay,
+                                features = features,
                                 slot = slot,
                                 verbose = verbose)
-    RET@meta.list$precalc.ident.expr[[precalc.expr.name]] <- expr.summ
+    RET@meta.list$precalc.ident.expr[[precalc.expr.name]] <- ident.summary.data
   }
-  
-  
+
   if (do.fast) {
     message("Calculating fast markers...")
     # RET@markers[[RET@meta.list$active.ident]]
-    RET <- setMarkersByCluster(RET = RET, markers.type = "quick", 
+    fast.name <- paste(assay, 
+                       test.use,
+                       slot, 
+                       paste0("logfc.", fast.threshold),
+                       sep = "_")
+    message(fast.name)
+    RET <- setMarkersByCluster(RET = RET, 
+                               markers.type = fast.name, 
                                FindAllMarkers(object = RET@seurat, 
                                               logfc.threshold = fast.threshold, 
                                               verbose = verbose,
                                               test.use = test.use,
-                                              ident.summary.data = RET@meta.list$precalc.ident.expr[[precalc.expr.name]]),
+                                              features = features,
+                                              slot = slot,
+                                              ident.summary.data = RET@meta.list$precalc.ident.expr[[precalc.expr.name]],
+                                              ...),
                                idents.use = idents.use)
                                
     # RET <- setMarkersByCluster(RET, "quick", 
@@ -291,12 +316,18 @@ seuratAllMarkers <- function(RET,
   }
   if (do.full) {
     message("Calculating full markers...")
-    RET <- setMarkersByCluster(RET = RET, markers.type = "full", 
+    RET <- setMarkersByCluster(RET = RET, markers.type = paste(assay, 
+                                                               test.use,
+                                                               slot, 
+                                                               paste0("logfc.", 
+                                                                      "0.05"),
+                                                               sep = "_"), 
                                markers = FindAllMarkers(RET@seurat, 
                                               logfc.threshold = 0.05,
                                               verbose = verbose,
-                                              test.use = test.use,
-                                              ident.summary.data = RET@meta.list$precalc.ident.expr[[precalc.expr.name]]), 
+                                              test.use = test.use)
+                               ,
+                                              # ident.summary.data = RET@meta.list$precalc.ident.expr[[precalc.expr.name]]), 
                                idents.use = idents.use)
     # 
     # RET <- setMarkersByCluster(RET, "full", 
@@ -345,6 +376,8 @@ seuratModuleMarkers <- function(RET, modules.use = NULL,
 #'
 #' @examples
 #' setMarkersByCluster(RET, markers.type, markers)
+#' 
+#' @importFrom dplyr filter
 #'
 #' @export
 setMarkersByCluster <- function(RET, markers.type, markers, idents.use) {

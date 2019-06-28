@@ -16,6 +16,7 @@ library(colorspace)
 
 library(shinyFiles)
 library(fs)
+library(shinyjs)
 
 options(shiny.maxRequestSize = 120000*1024^2)
 
@@ -42,9 +43,8 @@ server <- shinyServer(function(input, output, session){
   source(file.path(appDir, "server", "gene_expression_panel.R"), local = TRUE)$value
   source(file.path(appDir, "server", "marker_lists_panel.R"), local = TRUE)$value
   
-  
+  # runcodeServer()
 
-  
   output$NAMES <- renderUI({
     req(input$FILTER)
     GROUP.NAMES <- levels(DATA$orig.RET@seurat@meta.data[,input$FILTER])

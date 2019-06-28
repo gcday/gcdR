@@ -72,6 +72,11 @@ output$DIM.REDUC <- renderPlot({
                      reduction = input$DIM.REDUC)
   return(dim.plt)
 })
+
+observeEvent(input$SPLIT.BY, ignoreNULL = T, ignoreInit = T, {
+  
+  updateSplitVals()
+})
 output$DIM.REDUC.SPLIT <- renderPlot({
   req(DATA$RET, input$SPLIT.BY)
   SPLIT.RET <- DATA$RET
@@ -93,37 +98,14 @@ output$DIM.REDUC.SPLIT <- renderPlot({
 
 
 output$SPLIT.SUMMARY.1 <- renderUI({
-  req(DATA$RET, input$SPLIT.BY, input$CLUSTER)
-  do.percent <- input$SPLIT.TYPE == "percent"
-  split.vals <- as.factor(DATA$RET@seurat[[input$SPLIT.BY]][[input$SPLIT.BY]])
-  dt.1 <- breakdownTable(split.vals, Idents(DATA$RET@seurat), transpose = T)
-  dt.2 <- breakdownTable(Idents(DATA$RET@seurat), 
-                         split.vals)
-  
-  summary.table <- table(Idents(DATA$RET@seurat), split.vals)
-  # if (input$SPLIT.TYPE == "percent") summary.table <- gcdR::percent.table(summary.table)
-  
-  
-  
-  revised.dt <- NULL
-  for (i in 1:length(levels(DATA$RET@seurat))) {
-    for (j in 1:length(levels(split.vals))) {
-      val <- summary.table[i + (j - 1) * length(levels(DATA$RET@seurat))]
-      row <- levels(DATA$RET@seurat)[i]
-      col <- levels(split.vals)[j]
-      new.dt <- data.frame(row, col, val)
-      revised.dt <- rbind(revised.dt, new.dt)
-    }
-  }
-  colnames(revised.dt) <- c(input$CLUSTER, input$SPLIT.BY, "count")
-  
+  req(DATA$RET, input$SPLIT.BY, input$CLUSTER, DATA$split.datatable, DATA$split.dt.1, DATA$split.dt.2)
   fluidPage(
     fluidRow(
       box(title = paste0(input$SPLIT.BY, " makeup across ", input$CLUSTER),
           width = NULL,
           height = "auto",
           div(style = 'overflow-x: scroll; overflow-y: scroll', 
-              renderDT(dt.1, 
+              renderDT(DATA$split.dt.1, 
                        height = "auto",
                        options = list(paging = F, autoWidth = T, searching = F, 
                                       info = F, ordering = F)
@@ -133,9 +115,9 @@ output$SPLIT.SUMMARY.1 <- renderUI({
     ),
     fluidRow(
       renderPlot({
-        plot <- ggplot(revised.dt,
+        plot <- ggplot(DATA$split.datatable,
                        mapping=aes_string(x=input$CLUSTER, y="count", fill=input$SPLIT.BY)[c(2, 3, 1)])
-        return(plot + geom_bar(stat="identity", position = ifelse(do.percent, "fill", "stack")) +
+        return(plot + geom_bar(stat="identity", position = ifelse(DATA$do.percent, "fill", "stack")) +
           scale_fill_manual(values = Palettes(DATA$orig.RET, 
                                               as.integer(input$SPLIT.PALETTE), 
                                               var.use = input$SPLIT.BY)) + SeuratAxes() + NoGrid() + RotatedAxis())
@@ -146,7 +128,7 @@ output$SPLIT.SUMMARY.1 <- renderUI({
           width = NULL,
           height = "auto",
           div(style = 'overflow-x: scroll; overflow-y: scroll',
-              renderDT(dt.2, 
+              renderDT(DATA$split.dt.2, 
                        height = "auto",
                        options = list(paging = F, autoWidth = T, searching = F, 
                                       info = F, ordering = F)
@@ -156,10 +138,12 @@ output$SPLIT.SUMMARY.1 <- renderUI({
     ),
     fluidRow(
       renderPlot({
-        plot <- ggplot(revised.dt,
-                       aes_string(x=input$SPLIT.BY, y="count", fill = input$CLUSTER)[c(2, 3, 1)])
+        plot <- ggplot(DATA$split.datatable,
+                       aes_string(x=input$SPLIT.BY, 
+                                  y="count", 
+                                  fill = input$CLUSTER)[c(2, 3, 1)])
         return(plot + 
-          geom_bar(stat="identity", position = ifelse(do.percent, "fill", "stack")) +
+          geom_bar(stat="identity", position = ifelse(DATA$do.percent, "fill", "stack")) +
           scale_fill_manual(values = Palettes(DATA$orig.RET, as.integer(input$COLOR.PALETTE))) + 
           SeuratAxes() + NoGrid() + RotatedAxis())
         })

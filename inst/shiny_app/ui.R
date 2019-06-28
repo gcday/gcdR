@@ -130,13 +130,16 @@ sidebar <- dashboardSidebar(
           ),
           selectizeInput('FILTER','Filter by', choices = c(None=""), selected = NULL),
           uiOutput("NAMES"),
-          
-          actionButton("CHANGE.GRP.NAME", "Rename group"),
+          # actionButton("CHANGE.GRP.NAME", "Rename group"),
           actionButton("RENAME.IDENT", "Save current groups")
           
           # radioButtons("COLOR.PALETTE", "Color palette",  
           #              choices = c(`1` = 1, `2` = 2, `3` = 3, `4` = 4), selected = 1)
       )
+  # div(style = "margin-left: 10px;",
+  #     useShinyjs(),
+  #     runcodeUI()
+  # )
   
 
 

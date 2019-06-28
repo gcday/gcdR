@@ -7,7 +7,7 @@
 seuratAllMarkers(RET, do.fast = TRUE, do.full = FALSE,
   fast.threshold = 0.25, shiny = F, idents.use = NULL,
   assay = NULL, slot = "data", features = NULL, verbose = T,
-  test.use = "wilcox", ident.summary.data = NULL)
+  test.use = "wilcox", ident.summary.data = NULL, ...)
 }
 \arguments{
 \item{RET}{list containing Seurat object and plots}

@@ -1,7 +1,7 @@
 splitObjectSummary <- function(object, split.by, group.by) {
-  split.vals <- as.factor(object[[split.by]][[split.by]])
-  group.vals <- Idents(object)
-  summary.table <- table(Idents(object), split.vals)
+  split.vals <- factor(type.convert(x = as.character(object[[split.by]][[split.by]])))
+  group.vals <- factor(type.convert(x = as.character(object[[group.by]][[group.by]])))
+  summary.table <- table(group.vals, split.vals)
   revised.dt <- NULL
   for (i in 1:length(levels(group.vals))) {
     for (j in 1:length(levels(split.vals))) {

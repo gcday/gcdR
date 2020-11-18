@@ -188,11 +188,16 @@ renameAllIdents <- function(RET, new.idents) {
 #'
 #' @examples
 #' renameIdents(RET)
+#' 
+#' @importFrom plyr revalue
 #'
 #' @export
 gcdRenameIdent <- function(RET, ident.to.rename, new.label) {
   active.ident <- suppressWarnings(ActiveIdent(RET))
-  levels(RET@seurat)[levels(RET@seurat) == ident.to.rename] <- new.label
+  replace.idents <- c(new.label)
+  names(replace.idents) <-  ident.to.rename
+  Idents(RET@seurat) <- revalue(x = Idents(RET@seurat), replace = replace.idents)
+  # levels(RET@seurat)[levels(RET@seurat) == ident.to.rename] <- new.label
   
   RET@seurat[[active.ident]][[active.ident]] <- Idents(RET@seurat)
   # levels(RET@seurat[[ActiveIdent(RET)]][[ActiveIdent(RET)]])[levels(RET@seurat[[ActiveIdent(RET)]][[ActiveIdent(RET)]]) == ident.to.rename] <- new.label

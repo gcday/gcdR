@@ -86,7 +86,7 @@ readMarkersYAML <- function(yaml.path) {
 #' ident.summary <- SummarizeExprAcrossIdents(pbmc_small)
 #' }
 #'
-SummarizeExprAcrossIdents <- function(object, 
+SummarizeExprAcrossIdentsOld <- function(object, 
                                       assay = NULL, 
                                       features = NULL, 
                                       slot = 'data', 

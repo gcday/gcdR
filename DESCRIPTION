@@ -25,10 +25,9 @@ Imports:
 	ape,
 	yaml,
 	parallel,
-	fgsea,
 	enrichR,
-	msigdbr,
-	ggtree
+	msigdbr
 Suggests:
-	fgsea
+	fgsea,
+	ggtree
 

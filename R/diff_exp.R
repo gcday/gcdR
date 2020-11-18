@@ -281,12 +281,12 @@ seuratAllMarkers <- function(RET,
       ident.summary.data <- RET@meta.list$precalc.ident.expr[[precalc.expr.name]]
     }
   } else {
-    ident.summary.data <- ident.summary.data %||%
-      SummarizeExprAcrossIdents(object = RET@seurat,
-                                assay = assay,
-                                features = features,
-                                slot = slot,
-                                verbose = verbose)
+    # ident.summary.data <- ident.summary.data %||%
+    #   SummarizeExprAcrossIdents(object = RET@seurat,
+    #                             assay = assay,
+    #                             features = features,
+    #                             slot = slot,
+    #                             verbose = verbose)
     RET@meta.list$precalc.ident.expr[[precalc.expr.name]] <- ident.summary.data
   }
 

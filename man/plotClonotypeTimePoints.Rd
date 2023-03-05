@@ -4,9 +4,17 @@
 \alias{plotClonotypeTimePoints}
 \title{Dimensional reduction plot highlighting cells of a given clonotype based on their CD4.CD8 status}
 \usage{
-plotClonotypeTimePoints(object, title, clonotype, clonotype_prefix,
-  timepoint.field = "timepoint", site.field = "site",
-  site.levels = NULL, timepoint.levels = NULL, ...)
+plotClonotypeTimePoints(
+  object,
+  title,
+  clonotype,
+  clonotype_prefix,
+  timepoint.field = "timepoint",
+  site.field = "site",
+  site.levels = NULL,
+  timepoint.levels = NULL,
+  ...
+)
 }
 \description{
 Dimensional reduction plot highlighting cells of a given clonotype based on their CD4.CD8 status

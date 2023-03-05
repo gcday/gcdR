@@ -4,8 +4,7 @@
 \alias{seuratFindLikelyLightChainIdent}
 \title{Identifies light chain identity of sample}
 \usage{
-seuratFindLikelyLightChainIdent(SRT, mouse = FALSE,
-  tumor.idents = NULL)
+seuratFindLikelyLightChainIdent(SRT, mouse = FALSE, tumor.idents = NULL)
 }
 \arguments{
 \item{SRT}{Seurat object}

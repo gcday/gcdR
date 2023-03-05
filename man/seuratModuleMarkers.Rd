@@ -4,8 +4,14 @@
 \alias{seuratModuleMarkers}
 \title{Wrapper function to find module markers between clusters for a Seurat object}
 \usage{
-seuratModuleMarkers(RET, modules.use = NULL, markers.name = "modules",
-  idents.use = NULL, shiny = F, logfc.threshold = 0.05)
+seuratModuleMarkers(
+  RET,
+  modules.use = NULL,
+  markers.name = "modules",
+  idents.use = NULL,
+  shiny = F,
+  logfc.threshold = 0.05
+)
 }
 \arguments{
 \item{RET}{list containing Seurat object and plots}

@@ -4,8 +4,7 @@
 \alias{breakdownTable}
 \title{Summarizes 2 variables}
 \usage{
-breakdownTable(var.1, var.2, transpose = F, do.percent = T,
-  do.format = T)
+breakdownTable(var.1, var.2, transpose = F, do.percent = T, do.format = T)
 }
 \arguments{
 \item{var.1}{first list of values with length n}

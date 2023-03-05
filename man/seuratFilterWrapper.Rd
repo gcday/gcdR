@@ -4,9 +4,17 @@
 \alias{seuratFilterWrapper}
 \title{Wrapper function to perform initial filtering and normalization of a Seurat object}
 \usage{
-seuratFilterWrapper(SRT, min.genes = 200, max.genes = 5000,
-  min.UMI = 0, max.UMI = 30000, max.mito = 0.25,
-  mito.prefix = "^MT-", erythro.genes = NULL, max.erythro = 0.01)
+seuratFilterWrapper(
+  SRT,
+  min.genes = 200,
+  max.genes = 5000,
+  min.UMI = 0,
+  max.UMI = 30000,
+  max.mito = 0.25,
+  mito.prefix = "^MT-",
+  erythro.genes = NULL,
+  max.erythro = 0.01
+)
 }
 \arguments{
 \item{SRT}{Seurat object}

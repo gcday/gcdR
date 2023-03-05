@@ -16,14 +16,6 @@ markersBetweenConditions(RET, cond.var, cond.1, cond.2)
 \item{cond.1}{first condition}
 
 \item{cond.2}{second condition}
-
-\item{RET}{list containing aligned Seurat object}
-
-\item{cond.var}{name of variable storing condition values in Seurat object's metadata.}
-
-\item{cond.1}{first condition}
-
-\item{cond.2}{second condition}
 }
 \value{
 dataframe containing DE markers between conditions

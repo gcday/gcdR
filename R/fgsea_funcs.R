@@ -105,7 +105,7 @@ checkFGSEARanks <- function(RET, idents.to.use = NULL, overwrite = F) {
 #' @param mouse whether to convert gene names prior to fgsea
 #' @return list containing ranks and fgsea output for each ident
 #'
-#' @importFrom fgsea fgsea
+# @importFrom fgsea fgsea
 #'
 #' @examples
 #' fgseaWrapper(RET, pathways.list)

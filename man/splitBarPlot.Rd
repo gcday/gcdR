@@ -4,8 +4,7 @@
 \alias{splitBarPlot}
 \title{Applies the same X/Y axis limits to a list of plots.}
 \usage{
-splitBarPlot(object, group.by, split.by, cols, do.percent = T,
-  do.facet = F)
+splitBarPlot(object, group.by, split.by, cols, do.percent = T, do.facet = F)
 }
 \arguments{
 \item{...}{plots}

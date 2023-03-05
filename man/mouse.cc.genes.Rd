@@ -4,7 +4,9 @@
 \name{mouse.cc.genes}
 \alias{mouse.cc.genes}
 \title{Mouse cell cycle genes}
-\format{An object of class \code{list} of length 2.}
+\format{
+An object of class \code{list} of length 2.
+}
 \usage{
 data(mouse.cc.genes)
 }

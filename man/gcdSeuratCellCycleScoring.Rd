@@ -4,8 +4,7 @@
 \alias{gcdSeuratCellCycleScoring}
 \title{Performs cell cycle scoring}
 \usage{
-gcdSeuratCellCycleScoring(object, s.features, g2m.features,
-  set.ident = FALSE)
+gcdSeuratCellCycleScoring(object, s.features, g2m.features, set.ident = FALSE)
 }
 \arguments{
 \item{object}{Seurat object}

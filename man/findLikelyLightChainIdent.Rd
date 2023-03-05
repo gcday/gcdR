@@ -4,8 +4,12 @@
 \alias{findLikelyLightChainIdent}
 \title{Identifies light chain identity of sample}
 \usage{
-findLikelyLightChainIdent(RET, sample.variable = NULL, mouse = FALSE,
-  tumor.idents = NULL)
+findLikelyLightChainIdent(
+  RET,
+  sample.variable = NULL,
+  mouse = FALSE,
+  tumor.idents = NULL
+)
 }
 \arguments{
 \item{RET}{list containing Seurat object}

@@ -4,10 +4,23 @@
 \alias{gcdDoHeatmap}
 \title{Feature expression heatmap}
 \usage{
-gcdDoHeatmap(object, features = NULL, cells = NULL,
-  group.by = "ident", group.bar = TRUE, disp.min = -2.5,
-  disp.max = NULL, slot = "scale.data", assay = NULL, label = TRUE,
-  size = 5.5, cols = NULL, hjust = 0, angle = 45, combine = TRUE)
+gcdDoHeatmap(
+  object,
+  features = NULL,
+  cells = NULL,
+  group.by = "ident",
+  group.bar = TRUE,
+  disp.min = -2.5,
+  disp.max = NULL,
+  slot = "scale.data",
+  assay = NULL,
+  label = TRUE,
+  size = 5.5,
+  cols = NULL,
+  hjust = 0,
+  angle = 45,
+  combine = TRUE
+)
 }
 \arguments{
 \item{object}{Seurat object}

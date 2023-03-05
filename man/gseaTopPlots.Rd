@@ -4,8 +4,14 @@
 \alias{gseaTopPlots}
 \title{Plots enriched and depleted pathways in each cluster}
 \usage{
-gseaTopPlots(fgseaRes, path.name, pathways, term.prefix = "GO_",
-  pval.thresh = 0.01, num.to.print = 10)
+gseaTopPlots(
+  fgseaRes,
+  path.name,
+  pathways,
+  term.prefix = "GO_",
+  pval.thresh = 0.01,
+  num.to.print = 10
+)
 }
 \arguments{
 \item{fgseaRes}{list containing ranks and fgsea output for each ident, output of \link{gseaPerCluster}}

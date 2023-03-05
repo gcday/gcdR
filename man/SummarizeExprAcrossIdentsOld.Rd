@@ -5,8 +5,13 @@
 \title{Calculates average expression and counts cells with 
 nonzero expression for each ident.}
 \usage{
-SummarizeExprAcrossIdentsOld(object, assay = NULL, features = NULL,
-  slot = "data", verbose = F)
+SummarizeExprAcrossIdentsOld(
+  object,
+  assay = NULL,
+  features = NULL,
+  slot = "data",
+  verbose = F
+)
 }
 \arguments{
 \item{object}{A Seurat object}

@@ -2,10 +2,12 @@
 % Please edit documentation in R/TCR_utils.R
 \name{parseBuildTreesLogfile}
 \alias{parseBuildTreesLogfile}
-\title{Adds glycosylation site amino acid position and number to a clones data table.}
+\title{Parses the output of BuildTrees (ChangeO function)
+Returns a dataframe assigning each record to a subclone}
 \usage{
-parseBuildTreesLogfile(file.path, patient = NULL)
+parseBuildTreesLogfile(file.path, patient = NULL, debug = F)
 }
 \description{
-Adds glycosylation site amino acid position and number to a clones data table.
+Parses the output of BuildTrees (ChangeO function)
+Returns a dataframe assigning each record to a subclone
 }

@@ -4,8 +4,7 @@
 \alias{addTCRToSeurat}
 \title{Applies TCR annotation to Seurat object}
 \usage{
-addTCRToSeurat(object, barcode_to_clonotype, barcode_to_TRAV,
-  barcode_to_TRBV)
+addTCRToSeurat(object, barcode_to_clonotype, barcode_to_TRAV, barcode_to_TRBV)
 }
 \arguments{
 \item{object}{Seurat object}

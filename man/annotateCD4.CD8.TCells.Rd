@@ -4,8 +4,12 @@
 \alias{annotateCD4.CD8.TCells}
 \title{Uses expression gating to label T cells.}
 \usage{
-annotateCD4.CD8.TCells(object, CD4_cutoff = 0.5, CD8A_cutoff = 0.5,
-  CD3D_cutoff = 0.5)
+annotateCD4.CD8.TCells(
+  object,
+  CD4_cutoff = 0.5,
+  CD8A_cutoff = 0.5,
+  CD3D_cutoff = 0.5
+)
 }
 \arguments{
 \item{object}{Seurat object}

@@ -4,8 +4,12 @@
 \alias{correlateFgseaLeadingEdges}
 \title{Correlates genes in leading edges of enriched genes}
 \usage{
-correlateFgseaLeadingEdges(RET, pval.thresh = 0.001,
-  path.dbs.to.check = NULL, mouse = FALSE)
+correlateFgseaLeadingEdges(
+  RET,
+  pval.thresh = 0.001,
+  path.dbs.to.check = NULL,
+  mouse = FALSE
+)
 }
 \arguments{
 \item{RET}{list containing Seurat object}

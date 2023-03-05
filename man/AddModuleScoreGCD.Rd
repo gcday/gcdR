@@ -4,10 +4,23 @@
 \alias{AddModuleScoreGCD}
 \title{Calculate module scores for featre expression programs in single cells}
 \usage{
-AddModuleScoreGCD(object, features, pool = NULL, nbin = 24,
-  ctrl = 100, k = FALSE, assay = NULL, name = "Cluster",
-  seed = 1, verbose = F, do.parallel = T, check.parallel = F,
-  feature.names = NULL, check.features = F, bin_size = 256)
+AddModuleScoreGCD(
+  object,
+  features,
+  pool = NULL,
+  nbin = 24,
+  ctrl = 100,
+  k = FALSE,
+  assay = NULL,
+  name = "Cluster",
+  seed = 1,
+  verbose = F,
+  do.parallel = T,
+  check.parallel = F,
+  feature.names = NULL,
+  check.features = F,
+  bin_size = 256
+)
 }
 \arguments{
 \item{object}{Seurat object}

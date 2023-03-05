@@ -278,7 +278,7 @@ countGlycosylationSites <- function(clones.tbl, new.mode = F) {
 #' 
 
 
-parseBuildTreesLogfile <- function(file.path, patient = NULL) {
+oldParseBuildTreesLogfile <- function(file.path, patient = NULL) {
   logfile <- readLines(file.path)
   
   nvec <- length(logfile)
@@ -372,3 +372,148 @@ parseBuildTreesLogfile <- function(file.path, patient = NULL) {
   return(new_pass_df)
   # return(new_pass_clones)
 }
+
+#' Parses the output of BuildTrees (ChangeO function)
+#' Returns a dataframe assigning each record to a subclone
+#' 
+#' @importFrom progressr progressor 
+#' 
+#' @export
+#' 
+#' 
+parseBuildTreesLogfile <- function(file.path, patient = NULL, debug = F) {
+  logfile <- readLines(file.path)
+  
+  nvec <- length(logfile)
+  breaks <- which(! nzchar(logfile))
+  nbreaks <- length(breaks)
+  if (breaks[nbreaks] < nvec) {
+    breaks <- c(breaks, nvec + 1L)
+    nbreaks <- nbreaks + 1L
+  }
+  if (nbreaks > 0L) {
+    chunks <- mapply(function(a,b) paste(logfile[a:b], collapse = "\n"),
+                     c(1L, 1L + breaks[-nbreaks]),
+                     breaks - 1L)
+  }
+  pass.clones <- list()
+  parent_to_cloneid <- list()
+  collapsed.to <- c()
+  
+  p <- progressr::progressor(steps = 10, label = "Parsing logfile...")
+  message("Parsing logfile...")
+  for (i in 1:length(chunks)) {
+
+    fields <- list(ID = "", 
+                   CLONE = "", 
+                   PASS = FALSE, 
+                   END_MASKED = "", 
+                   SEQ_IN = "",
+                   SEQ_IMGT = "",
+                   SEQ_MASKED = "",
+                   IN_FRAME = "",
+                   MASKED = "",
+                   FRAMESHIFTS = "",
+                   FAIL = "",
+                   COLLAPSETO = "",
+                   COLLAPSEFROM = "",
+                   DUPLICATE = FALSE)
+    # record.lines <- strsplit(x = chunks[i], split = "\n", fixed = T)
+    # Populating the fields object by splitting the contents of each line and 
+    # taking the relevant parts
+    for (line in strsplit(x = chunks[i], split = "\n", fixed = T)[[1]]) {
+      # print(line)
+      split.line <- strsplit(x = str_trim(line), split = "> ", fixed = T)[[1]]
+      split.line[1] <- gsub(pattern = "-", replacement = "_", x = split.line[1])
+      if (!split.line[1] %in% names(fields)) {
+        print(split.line[1])
+      }        
+      if(split.line[1] %in% c("PASS", "DUPLICATE")) {
+        fields[[split.line[1]]] <- as.logical(split.line[2])
+      } else { 
+        fields[[split.line[1]]] <- split.line[2]
+      }
+    }
+    if (i %% trunc(length(chunks) / 10 ) == 0) {
+       # message(i / length(chunks))
+      p()
+    }
+      
+    if (fields$PASS) {
+      if (!fields$ID %in% names(pass.clones)) {
+        pass.clones[[fields$ID]] <- c(fields$ID)
+        parent_to_cloneid[[fields$ID]] <- fields$CLONE
+      }
+    } else if (fields$DUPLICATE) {
+      parent.clone <- gsub(pattern = "Duplication of ", replacement = "", x = fields$FAIL, fixed = T)
+      parent.clone <- gsub(pattern = "Collapsed with ", replacement = "", x = parent.clone, fixed = T)
+      if (parent.clone %in% names(pass.clones)) {
+        pass.clones[[parent.clone]] <- c(pass.clones[[parent.clone]], fields$ID)
+        collapsed.to[[fields$ID]] <- parent.clone
+      } else {
+        collapsed.to[[fields$ID]] <- parent.clone
+        
+        
+        
+        # collapsed.to[[parent.clone]] <- fields$ID
+        # pass.clones[[parent.clone]] <- c(parent.clone, fields$ID)
+        # parent_to_cloneid[[parent.clone]] <- fields$CLONE
+      }
+    } else {
+      if (debug) {
+        message(fields$ID ,"failed for non-duplicate reasons.")
+        print(fields)
+      }
+    }
+  }
+  # Looping through all cells who were collapsed to a sequence which appeared 
+  # after them in the logfile, meaning they weren't recognized as a 
+  # passing clone by the function at first. 
+  revisit.clones <- setdiff( names(collapsed.to),unlist(pass.clones))
+  p <- progressr::progressor(steps = 10, label = "Revisiting a few clones...")
+  
+  for (i in 1:length(revisit.clones)) {
+    cell.name <- revisit.clones[i]
+    if (i %% trunc(length(revisit.clones) / 10 ) == 0) {
+      p()
+    }
+    pass.parent <- collapsed.to[[cell.name]]
+    j <- 1
+    while (TRUE) {
+      if (j > 10) {
+        if (debug) message(cell.name, "failed after 10 tries")
+        break
+      }
+      if (pass.parent %in% names(pass.clones)) break
+      if (debug) message("Going from ", pass.parent, " to ", collapsed.to[[pass.parent]])
+      j <- j + 1
+      pass.parent <- collapsed.to[[pass.parent]]
+      # message("Going from ", pass.parent, " to ", )
+    }
+    pass.clones[[pass.parent]] <- c(pass.clones[[pass.parent]], cell.name)
+  }
+  patient <- patient %||% strsplit(x = names(pass.clones)[1], split = "_")[[1]][[1]]
+  # clone <- fields$CLONE
+  
+  p <- progressr::progressor(steps = 10, label = "Making the final dataframe...")
+  
+  new_pass_clones <- list()
+  new_pass_df <- NULL
+  for (i in 1:length(pass.clones)) {
+    if (i %% trunc(length(pass.clones) / 10 ) == 0) {
+      p()
+    }
+    clone <- parent_to_cloneid[[names(pass.clones)[i]]]
+    subclone <- paste(patient, clone, i, sep = "_")
+    # new_pass_clones[[subclone]] <- pass.clones[[i]]
+    new_pass_clones[[subclone]] <- separateCellnamesVDJ(cellnames = pass.clones[[i]])
+    new_pass_clones[[subclone]]$ig_subclone <- subclone
+    
+    new_pass_clones[[subclone]]$clone <- paste(patient, clone, sep = "_")
+    new_pass_df <- rbind(new_pass_df, new_pass_clones[[subclone]])
+  }
+  # print(nrow(new_pass_df))
+  return(new_pass_df)
+}
+
+
